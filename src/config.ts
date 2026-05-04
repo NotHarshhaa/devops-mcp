@@ -19,16 +19,9 @@ export interface Config {
   // PagerDuty
   pagerdutyToken?: string;
   
-  // Transport
-  transport: 'stdio' | 'sse' | 'websocket';
+  // SSE transport (only when not using stdio)
   port?: number;
   mcpAuthToken?: string;
-  
-  // Auth
-  authType?: 'none' | 'token' | 'oauth2' | 'jwt';
-  
-  // Multiplexing
-  maxConcurrentRequests?: number;
   
   // Safety
   dryRun: boolean;
@@ -53,16 +46,9 @@ export function loadConfig(): Config {
     // PagerDuty
     pagerdutyToken: process.env.PAGERDUTY_TOKEN,
     
-    // Transport
-    transport: (process.env.TRANSPORT as 'stdio' | 'sse' | 'websocket') || 'stdio',
+    // SSE transport (only when not using stdio)
     port: process.env.PORT ? parseInt(process.env.PORT, 10) : 3000,
     mcpAuthToken: process.env.MCP_AUTH_TOKEN,
-    
-    // Auth
-    authType: (process.env.AUTH_TYPE as 'none' | 'token' | 'oauth2' | 'jwt') || 'none',
-    
-    // Multiplexing
-    maxConcurrentRequests: process.env.MAX_CONCURRENT_REQUESTS ? parseInt(process.env.MAX_CONCURRENT_REQUESTS, 10) : 10,
     
     // Safety
     dryRun: process.env.DEVOPS_MCP_DRY_RUN === 'true',

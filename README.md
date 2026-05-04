@@ -221,9 +221,10 @@ Connect to `ws://localhost:3000/ws` with the auth token in the `Authorization` h
 
 `devops-mcp` is designed for internal use inside a trusted network. That said:
 
-- **Kubernetes:** run under a dedicated `ServiceAccount` with a scoped `ClusterRole`. A minimal read-only RBAC manifest is in `examples/k8s-rbac.yaml`. Limit `K8S_ALLOWED_NAMESPACES` to prevent cross-namespace access.
-- **ArgoCD:** create a dedicated `argocd account` with only `apiKey` capability and a policy limited to `get` and `sync`. Never use the admin token.
-- **PagerDuty:** use a dedicated API key. If you don't need acknowledge/escalate, create a read-only key.
+- **Kubernetes:** Uses standard kubeconfig via `@kubernetes/client-node`. Supports exec plugins (AWS EKS, GKE). In-cluster: auto-mounts SA token. Add RBAC rules scoped to your desired permissions — run devops-mcp under a dedicated ServiceAccount with minimal verbs.
+- **ArgoCD:** Generate a long-lived token: `argocd account generate-token --account devops-mcp`. Create a dedicated account in argocd-cm with apiKey capability and a role limited to read + sync.
+- **Prometheus:** Usually unauthenticated inside a cluster. If using Grafana Mimir or Thanos with auth, pass a Bearer token. All tools are read-only so minimal permissions are needed.
+- **PagerDuty:** Create a dedicated API key in PagerDuty → API Access → Create New API Key. Use Full Access if you want acknowledge/escalate tools; Read-only if you want a safe-only mode.
 - **Mutations are dry-run by default.** Every mutating tool defaults `dry_run: true`. The AI must explicitly pass `dry_run: false` — it won't do this unless the user clearly requests an action.
 - **Destructive tools require `confirm: true`.** This parameter is never passed by default; it requires the user to explicitly approve.
 - **Audit log.** Set `DEVOPS_MCP_AUDIT_LOG` to a file path. Every tool call is written as a JSONL line with timestamp, tool name, parameters, and outcome. Mutations and destructive calls are flagged.
@@ -271,9 +272,8 @@ Client / UI agents (Claude Desktop, Claude Code, etc.)
 
 **Key architectural features:**
 
-- **Multi-transport support**: stdio, SSE, and WebSocket transports with a unified abstraction layer
-- **Dynamic authentication**: Token-based auth with session management, extensible to OAuth2/JWT
-- **Request multiplexing**: Configurable concurrent request handling with queuing
+- **Multi-transport support**: stdio and SSE transports using official MCP SDK
+- **Simple authentication**: Bearer token for SSE transport (matches reference pattern)
 - **Provider isolation**: Each provider (k8s, argo, prom, pd) is a self-contained module
 - **Cross-cutting concerns**: Dry-run enforcement, audit logging, and error normalization applied consistently across all tools
 
