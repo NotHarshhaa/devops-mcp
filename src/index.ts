@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 
-import { McpServer } from './server.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { createServer } from './server.js';
 
 async function main() {
-  const server = new McpServer();
-  await server.start();
+  const server = createServer();
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
 }
 
 main().catch((error) => {

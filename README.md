@@ -104,15 +104,10 @@ PROMETHEUS_BEARER_TOKEN=                 # optional: for authenticated Prometheu
 PAGERDUTY_TOKEN=your-api-v2-token
 
 # ── Transport ────────────────────────────────────────────────
-TRANSPORT=stdio                          # stdio (default) | sse | websocket
-PORT=3000                                # SSE/WebSocket mode only
-MCP_AUTH_TOKEN=shared-secret            # Auth token for SSE/WebSocket
-
-# ── Authentication ───────────────────────────────────────────
-AUTH_TYPE=none                           # none | token | oauth2 | jwt
-
-# ── Multiplexing ─────────────────────────────────────────────
-MAX_CONCURRENT_REQUESTS=10               # Max concurrent requests
+# For stdio mode (default): no transport config needed
+# For SSE mode: set these env vars
+PORT=3000                                # SSE mode only
+MCP_AUTH_TOKEN=shared-secret            # Bearer token for SSE authentication
 
 # ── Safety ───────────────────────────────────────────────────
 DEVOPS_MCP_DRY_RUN=false                # true = block all mutations globally
@@ -188,9 +183,9 @@ All tools follow a three-tier safety model:
 
 ## Deployment options
 
-### stdio (default — local use)
+### stdio (recommended for local use)
 
-The MCP host launches `devops-mcp` as a subprocess and communicates over stdin/stdout. No ports, no auth config. This is the recommended mode for individual engineers using Claude Desktop or Claude Code.
+The MCP host launches `devops-mcp` as a subprocess and communicates over stdin/stdout. Zero network config. Auth comes from the local environment (kubeconfig, env vars). Process lifecycle tied to Claude Desktop.
 
 ```bash
 npx devops-mcp
@@ -198,19 +193,21 @@ npx devops-mcp
 KUBECONFIG=~/.kube/config npx devops-mcp
 ```
 
-### SSE (team-shared server)
+### SSE / HTTP (for shared teams)
 
-Run `devops-mcp` as a persistent HTTP service with Server-Sent Events. Supports authentication and can serve multiple clients.
+Server runs as a persistent HTTP service. Claude connects over Server-Sent Events. Enables multiple users sharing one server. Needs TLS + a bearer token or mTLS in front. Deploy via Docker on an internal bastion.
 
 ```bash
-TRANSPORT=sse PORT=3000 MCP_AUTH_TOKEN=your-secret npx devops-mcp
+npx devops-mcp-sse
+# or with env vars
+PORT=3000 MCP_AUTH_TOKEN=your-secret npx devops-mcp-sse
 ```
 
 For team use, put it behind a TLS-terminating reverse proxy (Caddy, nginx, Traefik). A minimal `docker-compose.yml` is in the `examples/` directory.
 
-### WebSocket (real-time bidirectional)
+### WebSocket (optional extra)
 
-Run `devops-mcp` with WebSocket transport for real-time bidirectional communication.
+Run `devops-mcp` with WebSocket transport for real-time bidirectional communication (not in reference implementation).
 
 ```bash
 TRANSPORT=websocket PORT=3000 MCP_AUTH_TOKEN=your-secret npx devops-mcp
