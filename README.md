@@ -188,9 +188,9 @@ All tools follow a three-tier safety model:
 The MCP host launches `devops-mcp` as a subprocess and communicates over stdin/stdout. Zero network config. Auth comes from the local environment (kubeconfig, env vars). Process lifecycle tied to Claude Desktop.
 
 ```bash
-npx devops-mcp
+npx @notharshhaa/devops-mcp
 # or with env vars
-KUBECONFIG=~/.kube/config npx devops-mcp
+KUBECONFIG=~/.kube/config npx @notharshhaa/devops-mcp
 ```
 
 ### SSE / HTTP (for shared teams)
@@ -198,19 +198,19 @@ KUBECONFIG=~/.kube/config npx devops-mcp
 Server runs as a persistent HTTP service. Claude connects over Server-Sent Events. Enables multiple users sharing one server. Needs TLS + a bearer token or mTLS in front. Deploy via Docker on an internal bastion.
 
 ```bash
-npx devops-mcp-sse
+npx @notharshhaa/devops-mcp-sse
 # or with env vars
-PORT=3000 MCP_AUTH_TOKEN=your-secret npx devops-mcp-sse
+PORT=3000 MCP_AUTH_TOKEN=your-secret npx @notharshhaa/devops-mcp-sse
 ```
 
 For team use, put it behind a TLS-terminating reverse proxy (Caddy, nginx, Traefik). A minimal `docker-compose.yml` is in the `examples/` directory.
 
 ### WebSocket (optional extra)
 
-Run `devops-mcp` with WebSocket transport for real-time bidirectional communication (not in reference implementation).
+Run `@notharshhaa/devops-mcp` with WebSocket transport for real-time bidirectional communication (not in reference implementation).
 
 ```bash
-TRANSPORT=websocket PORT=3000 MCP_AUTH_TOKEN=your-secret npx devops-mcp
+TRANSPORT=websocket PORT=3000 MCP_AUTH_TOKEN=your-secret npx @notharshhaa/devops-mcp
 ```
 
 Connect to `ws://localhost:3000/ws` with the auth token in the `Authorization` header.

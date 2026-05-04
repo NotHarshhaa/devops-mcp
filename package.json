@@ -1,6 +1,7 @@
 {
-  "name": "devops-mcp",
-  "version": "1.0.0",
+  "name": "@notharshhaa/devops-mcp",
+  "version": "1.0.1",
+  "mcpName": "io.github.NotHarshhaa/devops-mcp",
   "description": "Unified MCP server for DevOps engineers — query and manage Kubernetes, ArgoCD, Prometheus, and PagerDuty from any MCP-compatible AI agent.",
   "type": "module",
   "main": "dist/index.js",
@@ -27,8 +28,16 @@
     "devops",
     "claude"
   ],
-  "author": "",
+  "author": "DevOps MCP Contributors",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NotHarshhaa/devops-mcp"
+  },
+  "homepage": "https://github.com/NotHarshhaa/devops-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/NotHarshhaa/devops-mcp/issues"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
     "@kubernetes/client-node": "^1.4.0",
