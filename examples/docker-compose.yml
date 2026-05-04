@@ -1,0 +1,64 @@
+# Docker Compose for running devops-mcp in SSE mode
+# Use this for team-shared deployments behind a reverse proxy
+
+version: '3.8'
+
+services:
+  devops-mcp:
+    image: node:18-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run build && npx -y devops-mcp@latest"
+    environment:
+      # Transport
+      - TRANSPORT=sse
+      - PORT=3000
+      - MCP_AUTH_TOKEN=${MCP_AUTH_TOKEN:-your-shared-secret}
+      
+      # Kubernetes (mount kubeconfig from host)
+      - KUBECONFIG=/app/kubeconfig
+      
+      # ArgoCD
+      - ARGOCD_SERVER=${ARGOCD_SERVER}
+      - ARGOCD_TOKEN=${ARGOCD_TOKEN}
+      
+      # Prometheus
+      - PROMETHEUS_URL=${PROMETHEUS_URL}
+      - PROMETHEUS_BEARER_TOKEN=${PROMETHEUS_BEARER_TOKEN}
+      
+      # PagerDuty
+      - PAGERDUTY_TOKEN=${PAGERDUTY_TOKEN}
+      
+      # Safety
+      - DEVOPS_MCP_DRY_RUN=${DEVOPS_MCP_DRY_RUN:-false}
+      - DEVOPS_MCP_AUDIT_LOG=/var/log/devops-mcp-audit.jsonl
+    
+    volumes:
+      # Mount your kubeconfig (adjust path as needed)
+      - ${HOME}/.kube/config:/app/kubeconfig:ro
+      # Persist audit logs
+      - audit-logs:/var/log
+    
+    ports:
+      - "3000:3000"
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  audit-logs:
+
+# Example Caddyfile for TLS termination:
+#
+# devops-mcp.example.com {
+#     reverse_proxy localhost:3000
+#     basic_auth {
+#         admin $2a$14$... # hashed password
+#     }
+# }
+#
+# Run with: caddy run --config Caddyfile

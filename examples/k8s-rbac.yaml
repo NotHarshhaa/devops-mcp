@@ -1,0 +1,64 @@
+# Minimal read-only RBAC for devops-mcp
+# Apply this with: kubectl apply -f examples/k8s-rbac.yaml
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: devops-mcp
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: devops-mcp-read
+rules:
+  # Read-only access to most resources
+  - apiGroups: [""]
+    resources: ["pods", "services", "configmaps", "secrets", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["pods", "nodes"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: devops-mcp-read
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: devops-mcp-read
+subjects:
+  - kind: ServiceAccount
+    name: devops-mcp
+    namespace: default
+---
+# Optional: Add mutate permissions if you need scaling/rolling restart
+# Uncomment the following if you want write access
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: ClusterRole
+# metadata:
+#   name: devops-mcp-mutate
+# rules:
+#   - apiGroups: ["apps"]
+#     resources: ["deployments", "statefulsets"]
+#     verbs: ["get", "list", "watch", "update", "patch"]
+#   - apiGroups: [""]
+#     resources: ["pods"]
+#     verbs: ["get", "list", "watch", "delete"]
+# ---
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: ClusterRoleBinding
+# metadata:
+#   name: devops-mcp-mutate
+# roleRef:
+#   apiGroup: rbac.authorization.k8s.io
+#   kind: ClusterRole
+#   name: devops-mcp-mutate
+# subjects:
+#   - kind: ServiceAccount
+#     name: devops-mcp
+#     namespace: default

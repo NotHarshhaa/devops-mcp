@@ -1,0 +1,47 @@
+{
+  "name": "devops-mcp",
+  "version": "1.0.0",
+  "description": "Unified MCP server for DevOps engineers — query and manage Kubernetes, ArgoCD, Prometheus, and PagerDuty from any MCP-compatible AI agent.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "devops-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "kubernetes",
+    "argocd",
+    "prometheus",
+    "pagerduty",
+    "devops",
+    "claude"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "@kubernetes/client-node": "^1.4.0",
+    "node-fetch": "^3.3.2",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "typescript": "^5.5.3",
+    "tsx": "^4.16.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ]
+}
