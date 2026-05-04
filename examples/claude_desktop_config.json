@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "devops": {
+      "command": "npx",
+      "args": ["-y", "devops-mcp@latest"],
+      "env": {
+        "KUBECONFIG": "/home/you/.kube/config",
+        "ARGOCD_SERVER": "https://argocd.company.com",
+        "ARGOCD_TOKEN": "your-argocd-token",
+        "PROMETHEUS_URL": "http://prometheus.monitoring:9090",
+        "PAGERDUTY_TOKEN": "your-pd-api-token"
+      }
+    }
+  }
+}
