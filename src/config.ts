@@ -20,9 +20,15 @@ export interface Config {
   pagerdutyToken?: string;
   
   // Transport
-  transport: 'stdio' | 'sse';
+  transport: 'stdio' | 'sse' | 'websocket';
   port?: number;
   mcpAuthToken?: string;
+  
+  // Auth
+  authType?: 'none' | 'token' | 'oauth2' | 'jwt';
+  
+  // Multiplexing
+  maxConcurrentRequests?: number;
   
   // Safety
   dryRun: boolean;
@@ -34,7 +40,7 @@ export function loadConfig(): Config {
     // Kubernetes
     kubeconfig: process.env.KUBECONFIG,
     k8sContext: process.env.K8S_CONTEXT,
-    k8sAllowedNamespaces: process.env.K8S_ALLOWED_NAMESPACES?.split(',').map(s => s.trim()).filter(Boolean),
+    k8sAllowedNamespaces: process.env.K8S_ALLOWED_NAMESPACES?.split(',').map((s: string) => s.trim()).filter(Boolean),
     
     // ArgoCD
     argocdServer: process.env.ARGOCD_SERVER,
@@ -48,9 +54,15 @@ export function loadConfig(): Config {
     pagerdutyToken: process.env.PAGERDUTY_TOKEN,
     
     // Transport
-    transport: (process.env.TRANSPORT as 'stdio' | 'sse') || 'stdio',
+    transport: (process.env.TRANSPORT as 'stdio' | 'sse' | 'websocket') || 'stdio',
     port: process.env.PORT ? parseInt(process.env.PORT, 10) : 3000,
     mcpAuthToken: process.env.MCP_AUTH_TOKEN,
+    
+    // Auth
+    authType: (process.env.AUTH_TYPE as 'none' | 'token' | 'oauth2' | 'jwt') || 'none',
+    
+    // Multiplexing
+    maxConcurrentRequests: process.env.MAX_CONCURRENT_REQUESTS ? parseInt(process.env.MAX_CONCURRENT_REQUESTS, 10) : 10,
     
     // Safety
     dryRun: process.env.DEVOPS_MCP_DRY_RUN === 'true',

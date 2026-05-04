@@ -104,9 +104,15 @@ PROMETHEUS_BEARER_TOKEN=                 # optional: for authenticated Prometheu
 PAGERDUTY_TOKEN=your-api-v2-token
 
 # ── Transport ────────────────────────────────────────────────
-TRANSPORT=stdio                          # stdio (default) | sse
-PORT=3000                                # SSE mode only
-MCP_AUTH_TOKEN=shared-secret            # SSE mode only
+TRANSPORT=stdio                          # stdio (default) | sse | websocket
+PORT=3000                                # SSE/WebSocket mode only
+MCP_AUTH_TOKEN=shared-secret            # Auth token for SSE/WebSocket
+
+# ── Authentication ───────────────────────────────────────────
+AUTH_TYPE=none                           # none | token | oauth2 | jwt
+
+# ── Multiplexing ─────────────────────────────────────────────
+MAX_CONCURRENT_REQUESTS=10               # Max concurrent requests
 
 # ── Safety ───────────────────────────────────────────────────
 DEVOPS_MCP_DRY_RUN=false                # true = block all mutations globally
@@ -186,15 +192,31 @@ All tools follow a three-tier safety model:
 
 The MCP host launches `devops-mcp` as a subprocess and communicates over stdin/stdout. No ports, no auth config. This is the recommended mode for individual engineers using Claude Desktop or Claude Code.
 
+```bash
+npx devops-mcp
+# or with env vars
+KUBECONFIG=~/.kube/config npx devops-mcp
+```
+
 ### SSE (team-shared server)
 
-Run `devops-mcp` as a persistent HTTP service and point multiple Claude Desktop instances at it. Useful when you want a single centrally-configured server with shared kubeconfig and credentials.
+Run `devops-mcp` as a persistent HTTP service with Server-Sent Events. Supports authentication and can serve multiple clients.
 
 ```bash
 TRANSPORT=sse PORT=3000 MCP_AUTH_TOKEN=your-secret npx devops-mcp
 ```
 
 For team use, put it behind a TLS-terminating reverse proxy (Caddy, nginx, Traefik). A minimal `docker-compose.yml` is in the `examples/` directory.
+
+### WebSocket (real-time bidirectional)
+
+Run `devops-mcp` with WebSocket transport for real-time bidirectional communication.
+
+```bash
+TRANSPORT=websocket PORT=3000 MCP_AUTH_TOKEN=your-secret npx devops-mcp
+```
+
+Connect to `ws://localhost:3000/ws` with the auth token in the `Authorization` header.
 
 ---
 
@@ -215,22 +237,48 @@ For team use, put it behind a TLS-terminating reverse proxy (Caddy, nginx, Traef
 ## Architecture
 
 ```
-Claude / AI agent
-       │  MCP protocol (stdio or SSE)
+Client / UI agents (Claude Desktop, Claude Code, etc.)
+       │
        ▼
-  Transport layer
+  Transport Layer
+  ┌──────────────────────────────┐
+  │ stdio | SSE | WebSocket      │  ← Multiple transport support
+  │ Authentication (token/JWT)    │  ← Dynamic auth system
+  └──────────────────────────────┘
        │
-  Router + tool registry
-  (namespacing · dry-run guard · audit log)
+       ▼
+  Server & Auth/Registry
+  ┌──────────────────────────────┐
+  │ Tool registry & routing      │
+  │ Dynamic auth manager         │  ← Session-based auth
+  │ Request multiplexing         │  ← Concurrent request handling
+  │ Audit logging                │
+  └──────────────────────────────┘
        │
+       ▼
   ┌────┬────┬────┐
-  k8s  argo prom  pd
+  k8s  argo prom  pd  ← Provider modules
   │    │    │     │
-  K8s  Argo Prom  PD
+  K8s  Argo Prom  PD  ← API clients
   API  API  HTTP  API
+       │
+       ▼
+  Cross-cutting Concerns
+  ┌──────────────────────────────┐
+  │ Dry-run guard                │
+  │ Audit logger                 │
+  │ Error normalization          │
+  │ Config loader                │
+  └──────────────────────────────┘
 ```
 
-Each provider is a self-contained module that registers its tools against the shared `McpServer` instance. Cross-cutting concerns (dry-run enforcement, audit logging, error normalisation) live in `src/lib/` and are called by every tool handler.
+**Key architectural features:**
+
+- **Multi-transport support**: stdio, SSE, and WebSocket transports with a unified abstraction layer
+- **Dynamic authentication**: Token-based auth with session management, extensible to OAuth2/JWT
+- **Request multiplexing**: Configurable concurrent request handling with queuing
+- **Provider isolation**: Each provider (k8s, argo, prom, pd) is a self-contained module
+- **Cross-cutting concerns**: Dry-run enforcement, audit logging, and error normalization applied consistently across all tools
 
 ---
 

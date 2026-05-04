@@ -10,9 +10,15 @@ import * as argoHandlers from './providers/argo/handlers.js';
 import * as promHandlers from './providers/prom/handlers.js';
 import * as pdHandlers from './providers/pd/handlers.js';
 import { normalizeError } from './lib/errors.js';
+import { StdioTransport, SSETransport, WebSocketTransport, TransportType } from './transports/index.js';
+import { AuthManager } from './auth/index.js';
+import { RequestMultiplexer } from './multiplexer/index.js';
 
 export class McpServer {
   private server: Server;
+  private authManager: AuthManager;
+  private multiplexer: RequestMultiplexer;
+  private transport?: StdioTransport | SSETransport | WebSocketTransport;
 
   constructor() {
     this.server = new Server(
@@ -26,6 +32,15 @@ export class McpServer {
         },
       }
     );
+
+    // Initialize auth manager
+    this.authManager = new AuthManager({
+      type: config.mcpAuthToken ? 'token' : 'none',
+      token: config.mcpAuthToken,
+    });
+
+    // Initialize multiplexer for concurrent request handling
+    this.multiplexer = new RequestMultiplexer(10);
 
     this.setupHandlers();
   }
@@ -94,8 +109,46 @@ export class McpServer {
   }
 
   async start(): Promise<void> {
-    const transport = new StdioServerTransport();
-    await this.server.connect(transport);
-    console.error('devops-mcp server started');
+    const transportType = config.transport || 'stdio';
+
+    switch (transportType) {
+      case TransportType.STDIO:
+        this.transport = new StdioTransport();
+        await this.server.connect((this.transport as StdioTransport).getNativeTransport());
+        console.error('devops-mcp server started (stdio transport)');
+        break;
+
+      case TransportType.SSE:
+        this.transport = new SSETransport();
+        await this.transport.connect();
+        console.error('devops-mcp server started (SSE transport)');
+        break;
+
+      case TransportType.WEBSOCKET:
+        this.transport = new WebSocketTransport();
+        await this.transport.connect();
+        console.error('devops-mcp server started (WebSocket transport)');
+        break;
+
+      default:
+        throw new Error(`Unsupported transport type: ${transportType}`);
+    }
+  }
+
+  async stop(): Promise<void> {
+    if (this.transport) {
+      await this.transport.disconnect();
+    }
+  }
+
+  getStatus() {
+    return {
+      transport: config.transport,
+      auth: {
+        type: config.mcpAuthToken ? 'token' : 'none',
+        activeSessions: this.authManager.getActiveSessionCount(),
+      },
+      multiplexer: this.multiplexer.getStatus(),
+    };
   }
 }
