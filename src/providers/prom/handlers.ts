@@ -1,5 +1,6 @@
 import { config } from '../../config.js';
 import * as queries from './queries.js';
+import * as summarize from './summarize.js';
 
 export function getToolDefinitions() {
   // Skip if Prometheus is not configured
@@ -79,6 +80,20 @@ export function getToolDefinitions() {
         required: ['metric'],
       },
     },
+    {
+      name: 'prom__summarize_service_health',
+      description: 'Smart Prometheus summary: human-readable service health metrics including latency changes, error rate vs SLO, and traffic patterns',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          service: { type: 'string', description: 'Service or job name' },
+          namespace: { type: 'string', description: 'Namespace (optional)' },
+          timeframeMinutes: { type: 'number', description: 'Time window in minutes (default: 30)' },
+          sloThreshold: { type: 'number', description: 'Error rate SLO threshold as decimal (default: 0.05 for 5%)' },
+        },
+        required: ['service'],
+      },
+    },
   ];
 }
 
@@ -103,6 +118,13 @@ export async function handleTool(name: string, args: any): Promise<string> {
       return await queries.labelValues(args.label);
     case 'prom__metric_metadata':
       return await queries.metricMetadata(args.metric);
+    case 'prom__summarize_service_health':
+      return await summarize.summarizeServiceHealth(
+        args.service,
+        args.namespace,
+        args.timeframeMinutes,
+        args.sloThreshold
+      );
     default:
       throw new Error(`Unknown Prometheus tool: ${name}`);
   }

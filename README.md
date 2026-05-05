@@ -167,6 +167,22 @@ All tools follow a three-tier safety model:
 | `prom__list_targets` | read | All scrape targets with health and last scrape |
 | `prom__label_values` | read | Enumerate values for a given label name |
 | `prom__metric_metadata` | read | Type, help text, and unit for a metric |
+| `prom__summarize_service_health` | read | 📊 **Smart summary** - human-readable service health metrics including latency changes, error rate vs SLO, and traffic patterns |
+
+**Example usage:**
+```bash
+# Get a human-readable health summary
+prom__summarize_service_health(service="payments", timeframeMinutes=30, sloThreshold=0.05)
+```
+
+**What it outputs:**
+- **Latency**: "Latency increased: 120ms → 480ms (+300%)" or "Latency stable: 125ms"
+- **Error rate**: "Error rate crossed SLO (5%): 7.2%" or "Error rate within SLO: 2.1%"
+- **Traffic**: "Traffic dropped: 500 → 350 req/s (-30%)" or "Traffic spike detected (+150%)"
+- **Overall assessment**: Summary of issues and positive indicators
+
+**Why this matters:**
+Instead of raw PromQL numbers that require interpretation, this tool provides actionable insights that AI agents can use directly in responses, making monitoring data actually useful for incident investigation and communication.
 
 ### PagerDuty (`pd__*`)
 
