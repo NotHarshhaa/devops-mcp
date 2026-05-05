@@ -7,6 +7,7 @@ import * as k8sHandlers from './providers/k8s/handlers.js';
 import * as argoHandlers from './providers/argo/handlers.js';
 import * as promHandlers from './providers/prom/handlers.js';
 import * as pdHandlers from './providers/pd/handlers.js';
+import * as debugHandlers from './providers/debug/handlers.js';
 import { normalizeError } from './lib/errors.js';
 
 export function createServer(): Server {
@@ -30,6 +31,7 @@ export function createServer(): Server {
         ...argoHandlers.getToolDefinitions(),
         ...promHandlers.getToolDefinitions(),
         ...pdHandlers.getToolDefinitions(),
+        ...debugHandlers.getToolDefinitions(),
       ],
     };
   });
@@ -56,6 +58,10 @@ export function createServer(): Server {
       // PagerDuty tools
       else if (name.startsWith('pd__')) {
         result = await pdHandlers.handleTool(name, args || {});
+      }
+      // Debug tools
+      else if (name.startsWith('devops__')) {
+        result = await debugHandlers.handleTool(name, args || {});
       }
       else {
         throw new Error(`Unknown tool: ${name}`);

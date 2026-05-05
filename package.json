@@ -1,6 +1,6 @@
 {
   "name": "@notharshhaa/devops-mcp",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "mcpName": "io.github.NotHarshhaa/devops-mcp",
   "description": "Unified MCP server for DevOps engineers — query and manage Kubernetes, ArgoCD, Prometheus, and PagerDuty from any MCP-compatible AI agent.",
   "type": "module",

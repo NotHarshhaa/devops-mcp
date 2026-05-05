@@ -18,6 +18,7 @@ Instead of copy-pasting `kubectl` output into a chat window, you can ask:
 > *"What changed in the last ArgoCD sync for the auth app?"*
 > *"Show me the p99 latency for the API gateway over the last hour."*
 > *"Who's on call right now and what incidents are open?"*
+> *"Debug the payments service - what's wrong with it?"*
 
 ...and get live answers, sourced directly from your cluster and tooling.
 
@@ -29,6 +30,7 @@ Instead of copy-pasting `kubectl` output into a chat window, you can ask:
 | `argo__*` | ArgoCD | REST API |
 | `prom__*` | Prometheus | HTTP API (PromQL) |
 | `pd__*` | PagerDuty | REST API v2 |
+| `devops__*` | Cross-provider incident debugging | Aggregates all providers |
 
 ---
 
@@ -178,6 +180,32 @@ All tools follow a three-tier safety model:
 | `pd__acknowledge_incident` | mutate | Acknowledge — suppresses further notifications |
 | `pd__add_note` | mutate | Append a note to an incident timeline |
 | `pd__escalate_incident` | destructive | Escalate to a different policy — requires `confirm: true` |
+
+### Cross-Provider Debugging (`devops__*`)
+
+| Tool | Tier | Description |
+|---|---|---|
+| `devops__debug_service` | read | 🔥 **Cross-provider incident debugging** - aggregates Kubernetes, ArgoCD, Prometheus, and PagerDuty data to diagnose service issues in one command |
+
+**Example usage:**
+```bash
+# Debug a service across all providers
+devops__debug_service(service="payments", namespace="default")
+```
+
+**What it checks:**
+- **Kubernetes**: Pod status, restart counts, readiness, deployment health, recent events
+- **ArgoCD**: Sync status, health status, Git diff detection, deployment history  
+- **Prometheus**: Error rate (5xx responses), latency (p95), firing alerts
+- **PagerDuty**: Active incidents matching the service name
+
+**Output format:**
+- Human-readable diagnosis with emoji indicators (⚠️ warnings, ❌ errors)
+- Per-provider status sections
+- Summary highlighting critical issues
+- Raw JSON data for detailed analysis
+
+This is the most powerful tool for incident investigation - it gives you a complete picture of what's wrong with a service in seconds.
 
 ---
 
