@@ -186,6 +186,9 @@ All tools follow a three-tier safety model:
 | Tool | Tier | Description |
 |---|---|---|
 | `devops__debug_service` | read | 🔥 **Cross-provider incident debugging** - aggregates Kubernetes, ArgoCD, Prometheus, and PagerDuty data to diagnose service issues in one command |
+| `devops__explain_change` | read | 🧠 **Explain what changed** - combines ArgoCD history, Kubernetes rollout history, and Prometheus anomaly window to identify the cause of issues |
+
+#### `devops__debug_service`
 
 **Example usage:**
 ```bash
@@ -206,6 +209,31 @@ devops__debug_service(service="payments", namespace="default")
 - Raw JSON data for detailed analysis
 
 This is the most powerful tool for incident investigation - it gives you a complete picture of what's wrong with a service in seconds.
+
+#### `devops__explain_change`
+
+**Example usage:**
+```bash
+# Explain what changed in the last hour
+devops__explain_change(service="payments", namespace="default", timeframeMinutes=60)
+```
+
+**What it analyzes:**
+- **ArgoCD**: Deployment history within the timeframe, including revision, author, repo, and chart
+- **Kubernetes**: Current rollout status, replica counts, image tags, and deployment readiness
+- **Prometheus**: Error rate trends, latency patterns, and traffic spikes over the time window
+
+**Output format:**
+- Timeline of recent deployments with full metadata
+- Kubernetes rollout status and health
+- Metric anomaly detection (error rate spikes, latency issues, traffic changes)
+- **Correlation analysis** that links deployments to metric changes
+- Summary with root cause hypothesis
+
+**Problem it solves:**
+*"Everything was working yesterday… what changed?"*
+
+This tool answers that question by correlating deployment events with metric anomalies, helping you quickly identify whether a recent deployment, config change, or external factor caused the issue.
 
 ---
 
