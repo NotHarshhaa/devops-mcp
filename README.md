@@ -31,6 +31,7 @@ Instead of copy-pasting `kubectl` output into a chat window, you can ask:
 | `prom__*` | Prometheus | HTTP API (PromQL) |
 | `pd__*` | PagerDuty | REST API v2 |
 | `devops__*` | Cross-provider incident debugging | Aggregates all providers |
+| `logs__*` | Loki | HTTP API (LogQL) |
 
 ---
 
@@ -51,7 +52,9 @@ Add this to `~/.config/claude/claude_desktop_config.json` (macOS: `~/Library/App
         "ARGOCD_SERVER": "https://argocd.company.com",
         "ARGOCD_TOKEN": "your-argocd-token",
         "PROMETHEUS_URL": "http://prometheus.monitoring:9090",
-        "PAGERDUTY_TOKEN": "your-pd-api-token"
+        "PAGERDUTY_TOKEN": "your-pd-api-token",
+        "LOKI_URL": "http://loki.monitoring:3100",
+        "LOKI_TOKEN": "your-loki-token"
       }
     }
   }
@@ -67,7 +70,9 @@ claude mcp add devops-mcp -e KUBECONFIG=$HOME/.kube/config \
   -e ARGOCD_SERVER=https://argocd.company.com \
   -e ARGOCD_TOKEN=... \
   -e PROMETHEUS_URL=http://prometheus:9090 \
-  -e PAGERDUTY_TOKEN=...
+  -e PAGERDUTY_TOKEN=... \
+  -e LOKI_URL=http://loki.monitoring:3100 \
+  -e LOKI_TOKEN=...
 ```
 
 ### Local dev / test
@@ -104,6 +109,10 @@ PROMETHEUS_BEARER_TOKEN=                 # optional: for authenticated Prometheu
 
 # ── PagerDuty ────────────────────────────────────────────────
 PAGERDUTY_TOKEN=your-api-v2-token
+
+# ── Loki ───────────────────────────────────────────────────
+LOKI_URL=http://loki.monitoring:3100
+LOKI_TOKEN=your-loki-token
 
 # ── Transport ────────────────────────────────────────────────
 # For stdio mode (default): no transport config needed
@@ -184,6 +193,34 @@ prom__summarize_service_health(service="payments", timeframeMinutes=30, sloThres
 **Why this matters:**
 Instead of raw PromQL numbers that require interpretation, this tool provides actionable insights that AI agents can use directly in responses, making monitoring data actually useful for incident investigation and communication.
 
+### Loki (`logs__*`)
+
+| Tool | Tier | Description |
+|---|---|---|
+| `logs__get_recent_errors` | read | Get recent error logs from Loki for debugging incidents |
+| `logs__search` | read | Search logs in Loki with custom query for root cause analysis |
+
+**Example usage:**
+```bash
+# Get recent error logs
+logs__get_recent_errors(service="payments", namespace="default", minutes=30, limit=50)
+
+# Search logs with custom query
+logs__search(query='{service="payments"} |= level="error"', limit=100)
+```
+
+**Why this matters:**
+- **Metrics tell what**: Prometheus shows you that latency increased or error rate crossed SLO
+- **Logs tell why**: Loki shows you the actual error messages, stack traces, and context around failures
+- **Complete debugging**: Without logs, you can see that something is broken but not understand the root cause
+
+**Output format:**
+- Structured log entries with timestamp, message, service, namespace, and extracted log levels
+- Error count summaries and filtering
+- Raw LogQL results for detailed analysis
+
+This makes incident investigation complete by combining the "what" (metrics) with the "why" (logs).
+
 ### PagerDuty (`pd__*`)
 
 | Tool | Tier | Description |
@@ -202,7 +239,7 @@ Instead of raw PromQL numbers that require interpretation, this tool provides ac
 | Tool | Tier | Description |
 |---|---|---|
 | `devops__debug_service` | read | 🔥 **Cross-provider incident debugging** - aggregates Kubernetes, ArgoCD, Prometheus, and PagerDuty data to diagnose service issues in one command |
-| `devops__explain_change` | read | 🧠 **Explain what changed** - combines ArgoCD history, Kubernetes rollout history, and Prometheus anomaly window to identify the cause of issues |
+| `devops__explain_change` | read | 🧠 **Explain what changed** - combines ArgoCD history, Kubernetes rollout history, and Prometheus anomaly window to identify cause of issues |
 
 #### `devops__debug_service`
 

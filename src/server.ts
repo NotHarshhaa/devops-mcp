@@ -8,6 +8,7 @@ import * as argoHandlers from './providers/argo/handlers.js';
 import * as promHandlers from './providers/prom/handlers.js';
 import * as pdHandlers from './providers/pd/handlers.js';
 import * as debugHandlers from './providers/debug/handlers.js';
+import * as logsHandlers from './providers/logs/handlers.js';
 import { normalizeError } from './lib/errors.js';
 
 export function createServer(): Server {
@@ -32,6 +33,7 @@ export function createServer(): Server {
         ...promHandlers.getToolDefinitions(),
         ...pdHandlers.getToolDefinitions(),
         ...debugHandlers.getToolDefinitions(),
+        ...logsHandlers.getToolDefinitions(),
       ],
     };
   });
@@ -62,6 +64,10 @@ export function createServer(): Server {
       // Debug tools
       else if (name.startsWith('devops__')) {
         result = await debugHandlers.handleTool(name, args || {});
+      }
+      // Logs tools
+      else if (name.startsWith('logs__')) {
+        result = await logsHandlers.handleTool(name, args || {});
       }
       else {
         throw new Error(`Unknown tool: ${name}`);

@@ -19,6 +19,10 @@ export interface Config {
   // PagerDuty
   pagerdutyToken?: string;
   
+  // Loki
+  lokiUrl?: string;
+  lokiToken?: string;
+  
   // SSE transport (only when not using stdio)
   port?: number;
   mcpAuthToken?: string;
@@ -45,6 +49,10 @@ export function loadConfig(): Config {
     
     // PagerDuty
     pagerdutyToken: process.env.PAGERDUTY_TOKEN,
+    
+    // Loki
+    lokiUrl: process.env.LOKI_URL,
+    lokiToken: process.env.LOKI_TOKEN,
     
     // SSE transport (only when not using stdio)
     port: process.env.PORT ? parseInt(process.env.PORT, 10) : 3000,
