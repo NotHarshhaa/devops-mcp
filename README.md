@@ -233,6 +233,58 @@ This makes incident investigation complete by combining the "what" (metrics) wit
 | `pd__acknowledge_incident` | mutate | Acknowledge — suppresses further notifications |
 | `pd__add_note` | mutate | Append a note to an incident timeline |
 | `pd__escalate_incident` | destructive | Escalate to a different policy — requires `confirm: true` |
+| `pd__summarize_incident` | read | 🚨 **Incident auto-summary** - what happened, affected services, probable root cause, current status |
+
+#### `pd__summarize_incident`
+
+**Example usage:**
+```bash
+# Get an auto-summary of an incident
+pd__summarize_incident(id="ABC123")
+```
+
+**What it outputs:**
+- **What happened**: Incident title, description, severity, urgency, status, creation time, and duration
+- **Affected services**: Service name, ID, and current status
+- **Probable root cause**: Analysis of trigger alerts and log entries to identify likely causes
+- **Current status**: Current incident state, assignees, acknowledgements, and notes count
+
+**Output format:**
+```json
+{
+  "what_happened": {
+    "title": "API Gateway High Error Rate",
+    "description": "5xx error rate exceeded 5% threshold",
+    "severity": "high",
+    "urgency": "high",
+    "status": "acknowledged",
+    "createdAt": "2025-01-15T10:30:00Z",
+    "updatedAt": "2025-01-15T11:45:00Z",
+    "duration": "1h 15m"
+  },
+  "affected_services": [
+    {
+      "id": "P123456",
+      "name": "API Gateway",
+      "status": "critical"
+    }
+  ],
+  "probable_root_cause": "Triggered by: High 5xx error rate from API Gateway pods",
+  "current_status": {
+    "status": "acknowledged",
+    "lastUpdated": "2025-01-15T11:45:00Z",
+    "assignees": ["john.doe@company.com"],
+    "acknowledgements": 2,
+    "notes": 3
+  }
+}
+```
+
+**Why this matters:**
+Instead of manually piecing together incident details from multiple API calls, this tool provides a comprehensive, human-readable summary perfect for:
+- **Demos**: Shows AI's ability to understand and summarize complex incident data
+- **Real-world use**: Quickly understand incident impact without digging through raw data
+- **Communication**: Share concise incident summaries with stakeholders
 
 ### Cross-Provider Debugging (`devops__*`)
 

@@ -148,3 +148,92 @@ export async function escalateIncident(
     }, null, 2);
   });
 }
+
+export async function summarizeIncident(id: string): Promise<string> {
+  const client = getPdClient();
+  
+  // Get incident details
+  const incidentResult = await client.get(`/incidents/${id}`);
+  const incident = incidentResult.incident;
+  
+  // Get log entries for timeline analysis
+  const logResult = await client.get(`/incidents/${id}/log_entries`);
+  const logEntries = logResult.log_entries;
+  
+  // Get alerts to understand what triggered the incident
+  const alerts = incident.alerts || [];
+  
+  // Extract key information
+  const whatHappened = {
+    title: incident.title,
+    description: incident.description || 'No description provided',
+    severity: incident.severity || 'unknown',
+    urgency: incident.urgency || 'unknown',
+    status: incident.status,
+    createdAt: incident.created_at,
+    updatedAt: incident.updated_at,
+    duration: calculateDuration(incident.created_at, incident.updated_at),
+  };
+  
+  const affectedServices = [{
+    id: incident.service?.id,
+    name: incident.service?.summary || 'Unknown service',
+    status: incident.service?.status || 'unknown',
+  }];
+  
+  // Analyze alerts and log entries to determine probable root cause
+  const rootCauseAnalysis = analyzeRootCause(alerts, logEntries);
+  
+  const currentStatus = {
+    status: incident.status,
+    lastUpdated: incident.updated_at,
+    assignees: incident.assignees?.map((a: any) => a.summary) || [],
+    acknowledgements: logEntries.filter((e: any) => e.type === 'acknowledge').length,
+    notes: logEntries.filter((e: any) => e.type === 'note').length,
+  };
+  
+  const summary = {
+    what_happened: whatHappened,
+    affected_services: affectedServices,
+    probable_root_cause: rootCauseAnalysis,
+    current_status: currentStatus,
+  };
+  
+  return JSON.stringify(summary, null, 2);
+}
+
+function calculateDuration(createdAt: string, updatedAt: string): string {
+  const start = new Date(createdAt);
+  const end = new Date(updatedAt);
+  const durationMs = end.getTime() - start.getTime();
+  
+  const hours = Math.floor(durationMs / (1000 * 60 * 60));
+  const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+  
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+  return `${minutes}m`;
+}
+
+function analyzeRootCause(alerts: any[], logEntries: any[]): string {
+  // Look for patterns in alerts and log entries
+  const triggerAlerts = alerts.filter((a: any) => a.trigger_summary_data);
+  const errorLogs = logEntries.filter((e: any) => 
+    e.summary && (e.summary.toLowerCase().includes('error') || 
+                  e.summary.toLowerCase().includes('failure') ||
+                  e.summary.toLowerCase().includes('timeout'))
+  );
+  
+  if (triggerAlerts.length > 0) {
+    const triggerSummary = triggerAlerts[0].trigger_summary_data?.subject || 'Unknown trigger';
+    return `Triggered by: ${triggerSummary}`;
+  }
+  
+  if (errorLogs.length > 0) {
+    const commonErrors = errorLogs.map((e: any) => e.summary).slice(0, 3);
+    return `Error patterns detected: ${commonErrors.join('; ')}`;
+  }
+  
+  return 'Root cause analysis requires manual investigation - check alerts and log entries for details';
+}

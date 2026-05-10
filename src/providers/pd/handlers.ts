@@ -94,6 +94,17 @@ export function getToolDefinitions() {
         required: ['id', 'escalationPolicyId', 'confirm'],
       },
     },
+    {
+      name: 'pd__summarize_incident',
+      description: '🚨 Incident auto-summary - what happened, affected services, probable root cause, current status',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+        },
+        required: ['id'],
+      },
+    },
   ];
 }
 
@@ -119,6 +130,8 @@ export async function handleTool(name: string, args: any): Promise<string> {
         args.escalationPolicyId,
         args.confirm === true
       );
+    case 'pd__summarize_incident':
+      return await incidents.summarizeIncident(args.id);
     default:
       throw new Error(`Unknown PagerDuty tool: ${name}`);
   }
