@@ -6,7 +6,7 @@ export async function listIncidents(statuses?: string[]): Promise<string> {
   const params = new URLSearchParams();
   
   if (statuses && statuses.length > 0) {
-    params.append('statuses[]', statuses.join(','));
+    statuses.forEach(s => params.append('statuses[]', s));
   }
   
   const result = await client.get(`/incidents?${params.toString()}`);

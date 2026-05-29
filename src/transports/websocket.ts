@@ -27,7 +27,7 @@ export class WebSocketTransport implements Transport {
       res.end('Not Found');
     });
 
-    this.wss = new ws.Server({ server: this.server, path: '/ws' });
+    this.wss = new ws.WebSocketServer({ server: this.server, path: '/ws' });
 
     this.wss.on('connection', (ws: any, req: any) => {
       // Auth check

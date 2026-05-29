@@ -131,6 +131,19 @@ export function getToolDefinitions() {
       },
     },
     {
+      name: 'k8s__apply_manifest',
+      description: 'Apply a manifest string with server-side dry-run',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          manifest: { type: 'string', description: 'YAML or JSON manifest string' },
+          namespace: { type: 'string', description: 'Namespace to apply in (default: from manifest or "default")' },
+          dry_run: { type: 'boolean', description: 'Server-side dry-run (default: true)' },
+        },
+        required: ['manifest'],
+      },
+    },
+    {
       name: 'k8s__delete_resource',
       description: 'Delete a named resource — requires confirm: true',
       inputSchema: {
@@ -186,6 +199,12 @@ export async function handleTool(name: string, args: any): Promise<string> {
       return await deployments.rolloutRestart(
         args.namespace,
         args.name,
+        args.dry_run !== false
+      );
+    case 'k8s__apply_manifest':
+      return await resources.applyManifest(
+        args.manifest,
+        args.namespace,
         args.dry_run !== false
       );
     case 'k8s__delete_resource':

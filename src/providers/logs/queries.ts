@@ -32,8 +32,8 @@ export async function getRecentErrors(
   
   // Build LogQL query for recent errors
   const query = namespace 
-    ? `{namespace="${ns}",service="${service}"} |= level="error" |= level="Error" |= level="ERROR"`
-    : `{service="${service}"} |= level="error" |= level="Error" |= level="ERROR"`;
+    ? `{namespace="${ns}",service="${service}"} |~ "level=(error|Error|ERROR)"`
+    : `{service="${service}"} |~ "level=(error|Error|ERROR)"`;
   
   const params = new URLSearchParams({
     query,

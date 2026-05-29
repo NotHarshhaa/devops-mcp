@@ -30,7 +30,7 @@ export async function scaleDeployment(
   replicas: number,
   dryRun: boolean = true
 ): Promise<string> {
-  return withDryRunGuard('k8s__scale_deployment', { namespace, name, replicas, dryRun }, 'mutate', async () => {
+  return withDryRunGuard('k8s__scale_deployment', { namespace, name, replicas, dry_run: dryRun }, 'mutate', async () => {
     const appsV1 = getAppsV1();
     
     if (!checkNamespaceAllowed(namespace)) {
@@ -67,7 +67,7 @@ export async function rolloutRestart(
   name: string,
   dryRun: boolean = true
 ): Promise<string> {
-  return withDryRunGuard('k8s__rollout_restart', { namespace, name, dryRun }, 'mutate', async () => {
+  return withDryRunGuard('k8s__rollout_restart', { namespace, name, dry_run: dryRun }, 'mutate', async () => {
     const appsV1 = getAppsV1();
     
     if (!checkNamespaceAllowed(namespace)) {

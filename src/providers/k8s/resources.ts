@@ -1,5 +1,6 @@
-import { getCoreV1, getAppsV1, checkNamespaceAllowed } from './client.js';
+import { getCoreV1, getAppsV1, getKubeConfig, checkNamespaceAllowed } from './client.js';
 import { withDryRunGuard } from '../../lib/dry-run.js';
+import * as k8s from '@kubernetes/client-node';
 
 export async function describeResource(
   resourceType: string,
@@ -135,7 +136,7 @@ export async function listContexts(): Promise<string> {
 
 export async function switchContext(contextName: string): Promise<string> {
   return withDryRunGuard('k8s__switch_context', { contextName }, 'mutate', async () => {
-    const { getKubeConfig } = await import('./client.js');
+    const { getKubeConfig, resetClients } = await import('./client.js');
     const kc = getKubeConfig();
     
     const context = kc.getContexts().find(c => c.name === contextName);
@@ -144,10 +145,61 @@ export async function switchContext(contextName: string): Promise<string> {
     }
 
     kc.setCurrentContext(contextName);
+    resetClients();
     
     return JSON.stringify({
       switched: true,
       context: contextName,
     }, null, 2);
+  });
+}
+
+
+export async function applyManifest(
+  manifest: string,
+  namespace?: string,
+  dryRun: boolean = true
+): Promise<string> {
+  return withDryRunGuard('k8s__apply_manifest', { manifest: '(manifest)', namespace, dry_run: dryRun }, 'mutate', async () => {
+    const kc = getKubeConfig();
+    const specs = k8s.loadAllYaml(manifest) as k8s.KubernetesObject[];
+
+    if (!specs || specs.length === 0) {
+      throw new Error('No valid Kubernetes objects found in manifest');
+    }
+
+    const results: any[] = [];
+    const client = k8s.KubernetesObjectApi.makeApiClient(kc);
+
+    for (const spec of specs) {
+      if (!spec.kind || !spec.metadata) continue;
+
+      const ns = spec.metadata.namespace || namespace || 'default';
+      if (!checkNamespaceAllowed(ns)) {
+        throw new Error(`Namespace "${ns}" is not allowed`);
+      }
+      spec.metadata.namespace = ns;
+
+      if (dryRun) {
+        results.push({
+          kind: spec.kind,
+          name: spec.metadata.name,
+          namespace: ns,
+          dryRun: true,
+          action: 'would apply',
+        });
+      } else {
+        try {
+          await client.read(spec as any);
+          const res = await client.patch(spec as any);
+          results.push({ kind: spec.kind, name: spec.metadata.name, namespace: ns, action: 'patched' });
+        } catch {
+          const res = await client.create(spec as any);
+          results.push({ kind: spec.kind, name: spec.metadata.name, namespace: ns, action: 'created' });
+        }
+      }
+    }
+
+    return JSON.stringify({ dryRun, results }, null, 2);
   });
 }

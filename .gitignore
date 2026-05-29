@@ -43,6 +43,7 @@ temp/
 # MCP Registry publisher
 server.json
 mcp-publisher*
+.mcpregistry_*_token
 
 # Executables
 *.exe

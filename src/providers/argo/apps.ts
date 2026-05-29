@@ -56,7 +56,7 @@ export async function syncApp(
   prune: boolean = false,
   force: boolean = false
 ): Promise<string> {
-  return withDryRunGuard('argo__sync_app', { name, dryRun, prune, force }, 'mutate', async () => {
+  return withDryRunGuard('argo__sync_app', { name, dry_run: dryRun, prune, force }, 'mutate', async () => {
     const client = getArgoClient();
     
     if (dryRun) {

@@ -19,7 +19,6 @@ export class PrometheusClient {
     const url = `${this.baseUrl}${path}`;
     
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
       ...options.headers as Record<string, string>,
     };
 
@@ -47,7 +46,8 @@ export class PrometheusClient {
   async post(path: string, body: any): Promise<any> {
     return this.request(path, {
       method: 'POST',
-      body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body instanceof URLSearchParams ? body.toString() : JSON.stringify(body),
     });
   }
 }

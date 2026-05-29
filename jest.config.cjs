@@ -10,4 +10,7 @@ module.exports = {
   ],
   moduleFileExtensions: ['ts', 'js', 'json'],
   verbose: true,
+  transform: {
+    '^.+\\.ts$': ['ts-jest', { diagnostics: { ignoreCodes: [151002] } }],
+  },
 };

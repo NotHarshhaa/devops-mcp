@@ -5,7 +5,7 @@ import { config } from '../config.js';
 
 export function createSSEServer(): express.Express {
   const app = express();
-  const mcpServer = createServer();
+  let transport: SSEServerTransport | null = null;
 
   app.get('/sse', async (req: Request, res: Response) => {
     // Bearer token check
@@ -14,14 +14,16 @@ export function createSSEServer(): express.Express {
       return res.status(401).json({ error: 'unauthorized' });
     }
 
-    const transport = new SSEServerTransport('/message', res);
+    transport = new SSEServerTransport('/message', res);
+    const mcpServer = createServer();
     await mcpServer.connect(transport);
   });
 
   app.post('/message', express.json(), async (req: Request, res: Response) => {
-    // This endpoint is used by SSE transport for message routing
-    // The MCP SDK handles this internally
-    res.json({ success: true });
+    if (!transport) {
+      return res.status(400).json({ error: 'No active SSE connection' });
+    }
+    await transport.handlePostMessage(req, res);
   });
 
   // Health check endpoint
