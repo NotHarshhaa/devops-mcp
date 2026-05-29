@@ -9,6 +9,7 @@ import * as promHandlers from './providers/prom/handlers.js';
 import * as pdHandlers from './providers/pd/handlers.js';
 import * as debugHandlers from './providers/debug/handlers.js';
 import * as logsHandlers from './providers/logs/handlers.js';
+import * as helmHandlers from './providers/helm/handlers.js';
 import { normalizeError } from './lib/errors.js';
 
 export function createServer(): Server {
@@ -34,6 +35,7 @@ export function createServer(): Server {
         ...pdHandlers.getToolDefinitions(),
         ...debugHandlers.getToolDefinitions(),
         ...logsHandlers.getToolDefinitions(),
+        ...helmHandlers.getToolDefinitions(),
       ],
     };
   });
@@ -68,6 +70,10 @@ export function createServer(): Server {
       // Logs tools
       else if (name.startsWith('logs__')) {
         result = await logsHandlers.handleTool(name, args || {});
+      }
+      // Helm tools
+      else if (name.startsWith('helm__')) {
+        result = await helmHandlers.handleTool(name, args || {});
       }
       else {
         throw new Error(`Unknown tool: ${name}`);

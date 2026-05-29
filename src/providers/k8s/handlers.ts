@@ -2,6 +2,8 @@ import { config } from '../../config.js';
 import * as pods from './pods.js';
 import * as deployments from './deployments.js';
 import * as resources from './resources.js';
+import * as nodes from './nodes.js';
+import * as network from './network.js';
 import { requireK8sConfig } from './client.js';
 
 export function getToolDefinitions() {
@@ -157,6 +159,36 @@ export function getToolDefinitions() {
         required: ['resourceType', 'name', 'confirm'],
       },
     },
+    {
+      name: 'k8s__get_node_status',
+      description: 'Get node status with conditions, capacity, allocatable, labels, and taints',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          nodeName: { type: 'string', description: 'Node name (omit to list all nodes)' },
+        },
+      },
+    },
+    {
+      name: 'k8s__get_network_policies',
+      description: 'List network policies with podSelector, ingress/egress rules',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          namespace: { type: 'string', description: 'Namespace (default: default)' },
+        },
+      },
+    },
+    {
+      name: 'k8s__get_ingresses',
+      description: 'List ingresses with hosts, paths, backends, and TLS config',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          namespace: { type: 'string', description: 'Namespace (default: default)' },
+        },
+      },
+    },
   ];
 }
 
@@ -214,6 +246,12 @@ export async function handleTool(name: string, args: any): Promise<string> {
         args.namespace,
         args.confirm === true
       );
+    case 'k8s__get_node_status':
+      return await nodes.getNodeStatus(args?.nodeName);
+    case 'k8s__get_network_policies':
+      return await network.getNetworkPolicies(args?.namespace);
+    case 'k8s__get_ingresses':
+      return await network.getIngresses(args?.namespace);
     default:
       throw new Error(`Unknown Kubernetes tool: ${name}`);
   }

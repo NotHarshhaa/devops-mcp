@@ -94,6 +94,22 @@ export function getToolDefinitions() {
         required: ['service'],
       },
     },
+    {
+      name: 'prom__compare_periods',
+      description: 'Compare a metric between two time windows to detect before/after changes',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'PromQL query' },
+          period1Start: { type: 'string', description: 'Period 1 start (ISO timestamp or relative like -2h)' },
+          period1End: { type: 'string', description: 'Period 1 end' },
+          period2Start: { type: 'string', description: 'Period 2 start' },
+          period2End: { type: 'string', description: 'Period 2 end' },
+          step: { type: 'string', description: 'Query step (default: 1m)' },
+        },
+        required: ['query', 'period1Start', 'period1End', 'period2Start', 'period2End'],
+      },
+    },
   ];
 }
 
@@ -125,6 +141,8 @@ export async function handleTool(name: string, args: any): Promise<string> {
         args.timeframeMinutes,
         args.sloThreshold
       );
+    case 'prom__compare_periods':
+      return await summarize.comparePeriods(args.query, args.period1Start, args.period1End, args.period2Start, args.period2End, args.step);
     default:
       throw new Error(`Unknown Prometheus tool: ${name}`);
   }

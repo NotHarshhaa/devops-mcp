@@ -311,3 +311,56 @@ function calculateAverage(data: any[]): number {
   const sum = allValues.reduce((acc: number, val: number) => acc + val, 0);
   return sum / allValues.length;
 }
+
+
+export async function comparePeriods(
+  query: string,
+  period1Start: string,
+  period1End: string,
+  period2Start: string,
+  period2End: string,
+  step: string = '1m'
+): Promise<string> {
+  const p1Json = await queries.queryRange(query, period1Start, period1End, step);
+  const p2Json = await queries.queryRange(query, period2Start, period2End, step);
+
+  const p1Data = JSON.parse(p1Json);
+  const p2Data = JSON.parse(p2Json);
+
+  const p1Stats = computeStats(p1Data);
+  const p2Stats = computeStats(p2Data);
+
+  const avgChange = p2Stats.avg - p1Stats.avg;
+  const avgChangePercent = p1Stats.avg !== 0 ? (avgChange / p1Stats.avg) * 100 : 0;
+  const maxChange = p2Stats.max - p1Stats.max;
+
+  let trend: 'improved' | 'degraded' | 'stable' = 'stable';
+  if (avgChangePercent > 5) trend = 'degraded';
+  else if (avgChangePercent < -5) trend = 'improved';
+
+  const result = {
+    period1: { start: period1Start, end: period1End, ...p1Stats },
+    period2: { start: period2Start, end: period2End, ...p2Stats },
+    comparison: { avgChange, avgChangePercent, maxChange, trend },
+  };
+
+  return JSON.stringify(result, null, 2);
+}
+
+function computeStats(data: any[]): { avg: number; min: number; max: number; p95: number } {
+  const values = (data || []).flatMap((series: any) =>
+    (series.values || []).map((v: any) => parseFloat(v[1])).filter((n: number) => !isNaN(n))
+  );
+  if (values.length === 0) return { avg: 0, min: 0, max: 0, p95: 0 };
+
+  values.sort((a: number, b: number) => a - b);
+  const sum = values.reduce((a: number, b: number) => a + b, 0);
+  const p95Index = Math.floor(values.length * 0.95);
+
+  return {
+    avg: sum / values.length,
+    min: values[0],
+    max: values[values.length - 1],
+    p95: values[Math.min(p95Index, values.length - 1)],
+  };
+}

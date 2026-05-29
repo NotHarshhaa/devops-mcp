@@ -30,6 +30,7 @@ Instead of copy-pasting `kubectl` output into a chat window, you can ask:
 | `argo__*` | ArgoCD | REST API |
 | `prom__*` | Prometheus | HTTP API (PromQL) |
 | `pd__*` | PagerDuty | REST API v2 |
+| `helm__*` | Helm | CLI (helm binary) |
 | `devops__*` | Cross-provider incident debugging | Aggregates all providers |
 | `logs__*` | Loki | HTTP API (LogQL) |
 
@@ -146,6 +147,9 @@ All tools follow a three-tier safety model:
 | `k8s__get_events` | read | Cluster or namespace events, filterable by reason |
 | `k8s__list_deployments` | read | Deployments with replica counts and rollout health |
 | `k8s__get_resource_usage` | read | CPU/mem usage per pod via metrics-server |
+| `k8s__get_node_status` | read | Node health, conditions, capacity, allocatable resources, taints |
+| `k8s__get_network_policies` | read | Network policies with pod selectors and ingress/egress rules |
+| `k8s__get_ingresses` | read | Ingress resources with hosts, paths, backends, TLS config |
 | `k8s__list_contexts` | read | All kubeconfig contexts and the active one |
 | `k8s__switch_context` | mutate | Switch active context (session-scoped) |
 | `k8s__scale_deployment` | mutate | Scale replicas with dry-run diff preview |
@@ -177,6 +181,7 @@ All tools follow a three-tier safety model:
 | `prom__list_targets` | read | All scrape targets with health and last scrape |
 | `prom__label_values` | read | Enumerate values for a given label name |
 | `prom__metric_metadata` | read | Type, help text, and unit for a metric |
+| `prom__compare_periods` | read | 📈 **Compare metrics** between two time windows — detect before/after deployment changes |
 | `prom__summarize_service_health` | read | 📊 **Smart summary** - human-readable service health metrics including latency changes, error rate vs SLO, and traffic patterns |
 
 **Example usage:**
@@ -287,12 +292,38 @@ Instead of manually piecing together incident details from multiple API calls, t
 - **Real-world use**: Quickly understand incident impact without digging through raw data
 - **Communication**: Share concise incident summaries with stakeholders
 
+### Helm (`helm__*`)
+
+| Tool | Tier | Description |
+|---|---|---|
+| `helm__list_releases` | read | List Helm releases with status, chart, app version |
+| `helm__get_status` | read | Full status of a Helm release |
+| `helm__get_values` | read | User-supplied or computed values for a release |
+| `helm__get_history` | read | Revision history of a release |
+| `helm__rollback` | mutate | Rollback to a previous revision (dry-run by default) |
+
+**Requirements:** Helm CLI binary must be available in PATH.
+
+**Example usage:**
+```bash
+# List all releases in a namespace
+helm__list_releases(namespace="production")
+
+# Check what values a release is using
+helm__get_values(name="api-gateway", all_values=true)
+
+# Rollback after a bad deploy
+helm__rollback(name="api-gateway", revision=5, dry_run=false)
+```
+
 ### Cross-Provider Debugging (`devops__*`)
 
 | Tool | Tier | Description |
 |---|---|---|
 | `devops__debug_service` | read | 🔥 **Cross-provider incident debugging** - aggregates Kubernetes, ArgoCD, Prometheus, and PagerDuty data to diagnose service issues in one command |
 | `devops__explain_change` | read | 🧠 **Explain what changed** - combines ArgoCD history, Kubernetes rollout history, and Prometheus anomaly window to identify cause of issues |
+| `devops__runbook` | read | 📋 **Automated runbook** - symptom-based diagnostic that runs targeted checks (crashloop, high-latency, oom, 5xx, pod-pending) |
+| `devops__health_report` | read | 🏥 **Cluster health report** - one-shot assessment across all providers with overall status (healthy/degraded/critical) |
 
 #### `devops__debug_service`
 
@@ -340,6 +371,44 @@ devops__explain_change(service="payments", namespace="default", timeframeMinutes
 *"Everything was working yesterday… what changed?"*
 
 This tool answers that question by correlating deployment events with metric anomalies, helping you quickly identify whether a recent deployment, config change, or external factor caused the issue.
+
+#### `devops__runbook`
+
+**Example usage:**
+```bash
+# Diagnose a crashlooping service
+devops__runbook(symptom="crashloop", service="payments", namespace="default")
+
+# Investigate high latency
+devops__runbook(symptom="high-latency", service="api-gateway")
+```
+
+**Supported symptoms:**
+| Symptom | What it checks |
+|---|---|
+| `crashloop` | Pod status → logs (tail 50) → BackOff events → deployment health |
+| `high-latency` | p95 latency → resource usage → firing alerts → recent deploys |
+| `oom` | OOMKilled events → memory usage → pod describe → resource limits |
+| `5xx` | Error rate → Loki error logs → deployment health |
+| `pod-pending` | Scheduling events → pending pods → node capacity |
+
+**Output:** Structured JSON with `steps_executed[]`, `findings[]`, and `recommended_actions[]`.
+
+#### `devops__health_report`
+
+**Example usage:**
+```bash
+# Get a full cluster health assessment
+devops__health_report(namespace="production")
+```
+
+**What it gathers:**
+- **Kubernetes**: Unhealthy pods, deployments not at desired replicas
+- **Prometheus**: Count of firing alerts
+- **ArgoCD**: Out-of-sync and unhealthy applications
+- **PagerDuty**: Open incident count
+
+**Output:** Overall status (`healthy` / `degraded` / `critical`), per-provider sections, and summary. Perfect for morning standup checks or shift handoffs.
 
 ---
 
