@@ -150,6 +150,12 @@ All tools follow a three-tier safety model:
 | `k8s__get_node_status` | read | Node health, conditions, capacity, allocatable resources, taints |
 | `k8s__get_network_policies` | read | Network policies with pod selectors and ingress/egress rules |
 | `k8s__get_ingresses` | read | Ingress resources with hosts, paths, backends, TLS config |
+| `k8s__list_cronjobs` | read | CronJobs with schedule, last run, active jobs, suspend status |
+| `k8s__get_cronjob_status` | read | Detailed CronJob status with recent job history |
+| `k8s__diff_resource` | read | Compare current resource state vs last-applied-configuration |
+| `k8s__get_hpa` | read | HorizontalPodAutoscaler with current/target metrics and scaling status |
+| `k8s__list_pvcs` | read | PersistentVolumeClaims with status, capacity, storage class |
+| `k8s__list_services` | read | Services with type, ports, selectors, clusterIP, endpoints |
 | `k8s__list_contexts` | read | All kubeconfig contexts and the active one |
 | `k8s__switch_context` | mutate | Switch active context (session-scoped) |
 | `k8s__scale_deployment` | mutate | Scale replicas with dry-run diff preview |
@@ -182,6 +188,7 @@ All tools follow a three-tier safety model:
 | `prom__label_values` | read | Enumerate values for a given label name |
 | `prom__metric_metadata` | read | Type, help text, and unit for a metric |
 | `prom__compare_periods` | read | 📈 **Compare metrics** between two time windows — detect before/after deployment changes |
+| `prom__slo_status` | read | 🎯 **SLO compliance** — error budget remaining, burn rate, time to exhaustion |
 | `prom__summarize_service_health` | read | 📊 **Smart summary** - human-readable service health metrics including latency changes, error rate vs SLO, and traffic patterns |
 
 **Example usage:**
@@ -324,6 +331,7 @@ helm__rollback(name="api-gateway", revision=5, dry_run=false)
 | `devops__explain_change` | read | 🧠 **Explain what changed** - combines ArgoCD history, Kubernetes rollout history, and Prometheus anomaly window to identify cause of issues |
 | `devops__runbook` | read | 📋 **Automated runbook** - symptom-based diagnostic that runs targeted checks (crashloop, high-latency, oom, 5xx, pod-pending) |
 | `devops__health_report` | read | 🏥 **Cluster health report** - one-shot assessment across all providers with overall status (healthy/degraded/critical) |
+| `devops__incident_timeline` | read | 🕐 **Incident timeline** - unified event timeline across K8s, ArgoCD, Prometheus, and PagerDuty sorted chronologically |
 
 #### `devops__debug_service`
 

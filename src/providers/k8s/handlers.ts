@@ -4,6 +4,8 @@ import * as deployments from './deployments.js';
 import * as resources from './resources.js';
 import * as nodes from './nodes.js';
 import * as network from './network.js';
+import * as diff from './diff.js';
+import * as workloads from './workloads.js';
 import { requireK8sConfig } from './client.js';
 
 export function getToolDefinitions() {
@@ -189,6 +191,72 @@ export function getToolDefinitions() {
         },
       },
     },
+    {
+      name: 'k8s__diff_resource',
+      description: 'Compare current resource state against last-applied-configuration annotation to show drift',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          resourceType: { type: 'string', description: 'Resource type: deployment, service, configmap, statefulset, daemonset' },
+          name: { type: 'string', description: 'Resource name' },
+          namespace: { type: 'string', description: 'Namespace (default: default)' },
+        },
+        required: ['resourceType', 'name'],
+      },
+    },
+    {
+      name: 'k8s__list_cronjobs',
+      description: 'List cronjobs with schedule, suspend status, active jobs, and last run times',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          namespace: { type: 'string', description: 'Namespace (default: default)' },
+        },
+      },
+    },
+    {
+      name: 'k8s__get_cronjob_status',
+      description: 'Detailed status of a specific cronjob including recent job history',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'CronJob name' },
+          namespace: { type: 'string', description: 'Namespace (default: default)' },
+        },
+        required: ['name'],
+      },
+    },
+    {
+      name: 'k8s__list_services',
+      description: 'List services with type, clusterIP, ports, selector, and externalIPs',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          namespace: { type: 'string', description: 'Namespace (default: default)' },
+        },
+      },
+    },
+    {
+      name: 'k8s__list_pvcs',
+      description: 'List PersistentVolumeClaims with status, capacity, accessModes, and storageClass',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          namespace: { type: 'string', description: 'Namespace (default: default)' },
+        },
+      },
+    },
+    {
+      name: 'k8s__get_hpa',
+      description: 'Get HorizontalPodAutoscaler details with metrics, replicas, and conditions',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          namespace: { type: 'string', description: 'Namespace (default: default)' },
+          name: { type: 'string', description: 'HPA name (omit to list all)' },
+        },
+      },
+    },
   ];
 }
 
@@ -252,6 +320,18 @@ export async function handleTool(name: string, args: any): Promise<string> {
       return await network.getNetworkPolicies(args?.namespace);
     case 'k8s__get_ingresses':
       return await network.getIngresses(args?.namespace);
+    case 'k8s__diff_resource':
+      return JSON.stringify(await diff.diffResource(args.resourceType, args.name, args.namespace), null, 2);
+    case 'k8s__list_cronjobs':
+      return await workloads.listCronJobs(args?.namespace);
+    case 'k8s__get_cronjob_status':
+      return await workloads.getCronJobStatus(args.name, args?.namespace);
+    case 'k8s__list_services':
+      return await workloads.listServices(args?.namespace);
+    case 'k8s__list_pvcs':
+      return await workloads.listPVCs(args?.namespace);
+    case 'k8s__get_hpa':
+      return await workloads.getHPA(args?.namespace, args?.name);
     default:
       throw new Error(`Unknown Kubernetes tool: ${name}`);
   }

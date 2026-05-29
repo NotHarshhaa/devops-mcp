@@ -3,6 +3,7 @@ import * as debugService from './debug.js';
 import * as explainChange from './explain-change.js';
 import * as runbookModule from './runbook.js';
 import * as healthReportModule from './health-report.js';
+import * as timeline from './incident-timeline.js';
 
 export function getToolDefinitions() {
   const hasAnyProvider = config.kubeconfig || config.argocdServer || config.prometheusUrl || config.pagerdutyToken;
@@ -61,6 +62,19 @@ export function getToolDefinitions() {
         required: [],
       },
     },
+    {
+      name: 'devops__incident_timeline',
+      description: 'Incident timeline: aggregates events from all providers into a chronological timeline for a service',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          service: { type: 'string', description: 'Service or deployment name' },
+          minutes_back: { type: 'number', description: 'Time window in minutes (default: 60)' },
+          namespace: { type: 'string', description: 'Namespace (default: default)' },
+        },
+        required: ['service'],
+      },
+    },
   ];
 }
 
@@ -74,6 +88,8 @@ export async function handleTool(name: string, args: any): Promise<string> {
       return await runbookModule.runbook(args.symptom, args.service, args.namespace);
     case 'devops__health_report':
       return await healthReportModule.healthReport(args.namespace);
+    case 'devops__incident_timeline':
+      return await timeline.incidentTimeline(args.service, args.minutes_back, args.namespace);
     default:
       throw new Error(`Unknown debug tool: ${name}`);
   }

@@ -1,6 +1,7 @@
 import { config } from '../../config.js';
 import * as queries from './queries.js';
 import * as summarize from './summarize.js';
+import * as slo from './slo.js';
 
 export function getToolDefinitions() {
   // Skip if Prometheus is not configured
@@ -110,6 +111,20 @@ export function getToolDefinitions() {
         required: ['query', 'period1Start', 'period1End', 'period2Start', 'period2End'],
       },
     },
+    {
+      name: 'prom__slo_status',
+      description: 'SLO status for a service: current SLI, error budget consumption, burn rate, and time to exhaustion',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          service: { type: 'string', description: 'Service or job name' },
+          slo_target: { type: 'number', description: 'SLO target as decimal (default: 0.999 for 99.9%)' },
+          window_days: { type: 'number', description: 'SLO window in days (default: 30)' },
+          namespace: { type: 'string', description: 'Namespace filter (optional)' },
+        },
+        required: ['service'],
+      },
+    },
   ];
 }
 
@@ -143,6 +158,8 @@ export async function handleTool(name: string, args: any): Promise<string> {
       );
     case 'prom__compare_periods':
       return await summarize.comparePeriods(args.query, args.period1Start, args.period1End, args.period2Start, args.period2End, args.step);
+    case 'prom__slo_status':
+      return await slo.sloStatus(args.service, args.slo_target, args.window_days, args.namespace);
     default:
       throw new Error(`Unknown Prometheus tool: ${name}`);
   }
