@@ -46,7 +46,7 @@ Add this to `~/.config/claude/claude_desktop_config.json` (macOS: `~/Library/App
   "mcpServers": {
     "devops": {
       "command": "npx",
-      "args": ["-y", "devops-mcp@latest"],
+      "args": ["-y", "@notharshhaa/devops-mcp@latest"],
       "env": {
         "KUBECONFIG": "/home/you/.kube/config",
         "ARGOCD_SERVER": "https://argocd.company.com",
@@ -72,15 +72,16 @@ claude mcp add devops-mcp -e KUBECONFIG=$HOME/.kube/config \
   -e PROMETHEUS_URL=http://prometheus:9090 \
   -e PAGERDUTY_TOKEN=... \
   -e LOKI_URL=http://loki.monitoring:3100 \
-  -e LOKI_TOKEN=...
+  -e LOKI_TOKEN=... \
+  -- npx -y @notharshhaa/devops-mcp@latest
 ```
 
 ### Local dev / test
 
 ```bash
-npx devops-mcp
+npx @notharshhaa/devops-mcp
 # or clone and run:
-git clone https://github.com/your-handle/devops-mcp
+git clone https://github.com/NotHarshhaa/devops-mcp
 cd devops-mcp
 npm install
 cp .env.example .env   # fill in your values
@@ -460,7 +461,7 @@ Contributions are welcome. The most useful areas:
 ### Local development
 
 ```bash
-git clone https://github.com/your-handle/devops-mcp
+git clone https://github.com/NotHarshhaa/devops-mcp
 cd devops-mcp
 npm install
 cp .env.example .env
