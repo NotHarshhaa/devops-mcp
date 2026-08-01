@@ -60,23 +60,25 @@ export function getToolDefinitions() {
     },
     {
       name: 'pd__acknowledge_incident',
-      description: 'Acknowledge — suppresses further notifications',
+      description: 'Acknowledge an incident (dry-run by default)',
       inputSchema: {
         type: 'object',
         properties: {
           id: { type: 'string' },
+          dry_run: { type: 'boolean', description: 'Preview by default; set false to execute' },
         },
         required: ['id'],
       },
     },
     {
       name: 'pd__add_note',
-      description: 'Append a note to an incident timeline',
+      description: 'Append a note to an incident timeline (dry-run by default)',
       inputSchema: {
         type: 'object',
         properties: {
           incidentId: { type: 'string' },
           note: { type: 'string' },
+          dry_run: { type: 'boolean', description: 'Preview by default; set false to execute' },
         },
         required: ['incidentId', 'note'],
       },
@@ -121,9 +123,9 @@ export async function handleTool(name: string, args: any): Promise<string> {
     case 'pd__get_log_entries':
       return await incidents.getLogEntries(args.incidentId);
     case 'pd__acknowledge_incident':
-      return await incidents.acknowledgeIncident(args.id);
+      return await incidents.acknowledgeIncident(args.id, args.dry_run !== false);
     case 'pd__add_note':
-      return await incidents.addNote(args.incidentId, args.note);
+      return await incidents.addNote(args.incidentId, args.note, args.dry_run !== false);
     case 'pd__escalate_incident':
       return await incidents.escalateIncident(
         args.id,

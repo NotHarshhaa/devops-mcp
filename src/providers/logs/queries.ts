@@ -18,6 +18,54 @@ interface LogEntry {
   stream?: any;
 }
 
+export function escapeLogqlString(value: string): string {
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\r/g, '\\r')
+    .replace(/\n/g, '\\n');
+}
+
+function lokiTimestampToIso(timestamp: unknown): string {
+  const raw = String(timestamp ?? '');
+
+  try {
+    const value = BigInt(raw);
+    // Loki query_range timestamps are nanoseconds. Retain compatibility with
+    // millisecond/second fixtures and proxies that normalize the value.
+    const milliseconds = value >= 1_000_000_000_000_000n
+      ? value / 1_000_000n
+      : value >= 1_000_000_000_000n
+        ? value
+        : value * 1_000n;
+    const date = new Date(Number(milliseconds));
+    if (!Number.isNaN(date.getTime())) return date.toISOString();
+  } catch {
+    const date = new Date(raw);
+    if (!Number.isNaN(date.getTime())) return date.toISOString();
+  }
+
+  return raw;
+}
+
+export function formatLokiStreams(streams: any[]): LogEntry[] {
+  return (streams || []).flatMap((entry: any) => {
+    const stream = entry.stream || {};
+    return (entry.values || []).map((value: any[]) => {
+      const message = String(value?.[1] ?? 'No message');
+      return {
+        timestamp: lokiTimestampToIso(value?.[0]),
+        message,
+        level: extractLogLevel(message),
+        service: extractService(stream),
+        namespace: extractNamespace(stream),
+        count: 1,
+        stream,
+      };
+    });
+  });
+}
+
 export async function getRecentErrors(
   service: string,
   namespace?: string,
@@ -31,9 +79,11 @@ export async function getRecentErrors(
   const startTime = new Date(Date.now() - minutes * 60 * 1000).toISOString();
   
   // Build LogQL query for recent errors
-  const query = namespace 
-    ? `{namespace="${ns}",service="${service}"} |~ "level=(error|Error|ERROR)"`
-    : `{service="${service}"} |~ "level=(error|Error|ERROR)"`;
+  const escapedNamespace = escapeLogqlString(ns);
+  const escapedService = escapeLogqlString(service);
+  const query = namespace
+    ? `{namespace="${escapedNamespace}",service="${escapedService}"} |~ "level=(error|Error|ERROR)"`
+    : `{service="${escapedService}"} |~ "level=(error|Error|ERROR)"`;
   
   const params = new URLSearchParams({
     query,
@@ -51,15 +101,7 @@ export async function getRecentErrors(
     }
     
     const logs = result.data?.result || [];
-    const formattedLogs = logs.map((entry: any) => ({
-      timestamp: new Date(entry.values?.[0]?.[0] * 1000).toISOString(),
-      message: entry.values?.[0]?.[1] || 'No message',
-      level: extractLogLevel(entry.values?.[0]?.[1] || ''),
-      service: extractService(entry.stream || {}),
-      namespace: extractNamespace(entry.stream || {}),
-      count: entry.values?.length || 0,
-      stream: entry.stream || {},
-    }));
+    const formattedLogs = formatLokiStreams(logs);
     
     return JSON.stringify({
       query,
@@ -108,15 +150,7 @@ export async function search(
     }
     
     const logs = result.data.result || [];
-    const formattedLogs = logs.map((entry: any) => ({
-      timestamp: new Date(entry.values?.[0]?.[0] * 1000).toISOString(),
-      message: entry.values?.[0]?.[1] || 'No message',
-      level: extractLogLevel(entry.values?.[0]?.[1] || ''),
-      service: extractService(entry.stream || {}),
-      namespace: extractNamespace(entry.stream || {}),
-      count: entry.values?.length || 0,
-      stream: entry.stream || {},
-    }));
+    const formattedLogs = formatLokiStreams(logs);
     
     return JSON.stringify({
       query,

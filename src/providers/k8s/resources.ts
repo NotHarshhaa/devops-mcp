@@ -134,20 +134,33 @@ export async function listContexts(): Promise<string> {
   return JSON.stringify(contexts, null, 2);
 }
 
-export async function switchContext(contextName: string): Promise<string> {
-  return withDryRunGuard('k8s__switch_context', { contextName }, 'mutate', async () => {
+export async function switchContext(
+  contextName: string,
+  dryRun: boolean = true
+): Promise<string> {
+  return withDryRunGuard('k8s__switch_context', { contextName, dry_run: dryRun }, 'mutate', async () => {
     const { getKubeConfig, resetClients } = await import('./client.js');
     const kc = getKubeConfig();
-    
+
     const context = kc.getContexts().find(c => c.name === contextName);
     if (!context) {
       throw new Error(`Context "${contextName}" not found`);
     }
 
+    if (dryRun) {
+      return JSON.stringify({
+        dryRun: true,
+        currentContext: kc.getCurrentContext(),
+        targetContext: contextName,
+        message: `Would switch to context ${contextName}`,
+      }, null, 2);
+    }
+
     kc.setCurrentContext(contextName);
     resetClients();
-    
+
     return JSON.stringify({
+      dryRun: false,
       switched: true,
       context: contextName,
     }, null, 2);

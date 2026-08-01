@@ -38,18 +38,19 @@ export async function scaleDeployment(
     }
 
     const deployment = await appsV1.readNamespacedDeployment({ name, namespace });
-    
-    if (deployment.spec) {
-      deployment.spec.replicas = replicas;
-    }
+    const currentReplicas = deployment.spec?.replicas ?? 1;
 
     if (dryRun) {
       return JSON.stringify({
         dryRun: true,
-        currentReplicas: deployment.spec?.replicas,
+        currentReplicas,
         newReplicas: replicas,
         message: 'Dry run - no changes made',
       }, null, 2);
+    }
+
+    if (deployment.spec) {
+      deployment.spec.replicas = replicas;
     }
 
     await appsV1.replaceNamespacedDeployment({ name, namespace, body: deployment });

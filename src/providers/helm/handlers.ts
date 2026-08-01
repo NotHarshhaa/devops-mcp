@@ -1,5 +1,4 @@
 import { execFileSync } from 'node:child_process';
-import { withDryRunGuard } from '../../lib/dry-run.js';
 import * as releases from './releases.js';
 
 let helmAvailable: boolean | null = null;
@@ -95,8 +94,11 @@ export async function handleTool(name: string, args: any): Promise<string> {
     case 'helm__get_history':
       return await releases.getReleaseHistory(args.name, args.namespace);
     case 'helm__rollback':
-      return await withDryRunGuard('helm__rollback', args, 'mutate', () =>
-        releases.rollbackRelease(args.name, args.revision, args.namespace, false)
+      return await releases.rollbackRelease(
+        args.name,
+        args.revision,
+        args.namespace,
+        args.dry_run !== false
       );
     default:
       throw new Error(`Unknown Helm tool: ${name}`);

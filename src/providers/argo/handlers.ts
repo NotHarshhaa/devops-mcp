@@ -76,24 +76,26 @@ export function getToolDefinitions() {
     },
     {
       name: 'argo__rollback_app',
-      description: 'Roll back to a specific history revision',
+      description: 'Roll back to a specific history revision (dry-run by default)',
       inputSchema: {
         type: 'object',
         properties: {
           name: { type: 'string' },
           revision: { type: 'number' },
+          dry_run: { type: 'boolean', description: 'Preview by default; set false to execute' },
         },
         required: ['name', 'revision'],
       },
     },
     {
       name: 'argo__terminate_op',
-      description: 'Cancel an in-progress sync operation',
+      description: 'Cancel an in-progress sync operation (dry-run by default)',
       inputSchema: {
         type: 'object',
         properties: {
           name: { type: 'string' },
           uid: { type: 'string' },
+          dry_run: { type: 'boolean', description: 'Preview by default; set false to execute' },
         },
         required: ['name', 'uid'],
       },
@@ -121,9 +123,9 @@ export async function handleTool(name: string, args: any): Promise<string> {
         args.force || false
       );
     case 'argo__rollback_app':
-      return await apps.rollbackApp(args.name, args.revision);
+      return await apps.rollbackApp(args.name, args.revision, args.dry_run !== false);
     case 'argo__terminate_op':
-      return await apps.terminateOp(args.name, args.uid);
+      return await apps.terminateOp(args.name, args.uid, args.dry_run !== false);
     default:
       throw new Error(`Unknown ArgoCD tool: ${name}`);
   }

@@ -13,30 +13,29 @@ export function enforceDryRun(
   parameters: Record<string, unknown>,
   tier: 'mutate' | 'destructive'
 ): void {
-  const dryRun = parameters.dry_run as boolean | undefined;
-  
-  // Global dry-run override
-  if (config.dryRun && dryRun !== false) {
+  const dryRun = parameters.dry_run;
+
+  // Mutating tools must always make their execution intent explicit. Handlers
+  // normalize an omitted dry_run parameter to true before reaching this guard.
+  if (tier === 'mutate' && typeof dryRun !== 'boolean') {
     throw new DryRunError(
-      `Global dry-run mode is enabled. Set dry_run=false to execute. Tool: ${tool}`
+      `Mutating operation requires a boolean dry_run parameter. Tool: ${tool}`
     );
   }
-  
-  // Default dry-run for mutate operations
-  if (tier === 'mutate' && dryRun !== false) {
+
+  // Global dry-run permits safe previews but can never be overridden to execute.
+  // Destructive tools do not have a preview mode, so they are always blocked.
+  if (config.dryRun && (tier === 'destructive' || dryRun === false)) {
     throw new DryRunError(
-      `Mutating operation requires dry_run=false to execute. Tool: ${tool}`
+      `Global dry-run mode is enabled; execution is blocked. Tool: ${tool}`
     );
   }
-  
-  // Destructive operations require confirm=true
-  if (tier === 'destructive') {
-    const confirm = parameters.confirm as boolean | undefined;
-    if (!confirm) {
-      throw new Error(
-        `Destructive operation requires confirm=true. Tool: ${tool}`
-      );
-    }
+
+  // Destructive operations additionally require explicit confirmation.
+  if (tier === 'destructive' && parameters.confirm !== true) {
+    throw new Error(
+      `Destructive operation requires confirm=true. Tool: ${tool}`
+    );
   }
 }
 
@@ -46,11 +45,11 @@ export async function withDryRunGuard<T>(
   tier: 'read' | 'mutate' | 'destructive',
   fn: () => Promise<T>
 ): Promise<T> {
-  if (tier !== 'read') {
-    enforceDryRun(tool, parameters, tier);
-  }
-  
   try {
+    if (tier !== 'read') {
+      enforceDryRun(tool, parameters, tier);
+    }
+
     const result = await fn();
     await auditSuccess(tool, parameters, tier);
     return result;

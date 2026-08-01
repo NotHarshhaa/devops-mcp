@@ -82,15 +82,26 @@ export async function syncApp(
   });
 }
 
-export async function rollbackApp(name: string, revision: number): Promise<string> {
-  return withDryRunGuard('argo__rollback_app', { name, revision }, 'mutate', async () => {
+export async function rollbackApp(
+  name: string,
+  revision: number,
+  dryRun: boolean = true
+): Promise<string> {
+  return withDryRunGuard('argo__rollback_app', { name, revision, dry_run: dryRun }, 'mutate', async () => {
+    if (dryRun) {
+      return JSON.stringify({
+        dryRun: true,
+        message: `Would roll back application ${name} to revision ${revision}`,
+      }, null, 2);
+    }
+
     const client = getArgoClient();
-    
-    const result = await client.post(`/api/v1/applications/${name}/rollback`, {
+    await client.post(`/api/v1/applications/${encodeURIComponent(name)}/rollback`, {
       revision,
     });
 
     return JSON.stringify({
+      dryRun: false,
       rolledBack: true,
       application: name,
       revision,
@@ -98,13 +109,24 @@ export async function rollbackApp(name: string, revision: number): Promise<strin
   });
 }
 
-export async function terminateOp(name: string, uid: string): Promise<string> {
-  return withDryRunGuard('argo__terminate_op', { name, uid }, 'mutate', async () => {
+export async function terminateOp(
+  name: string,
+  uid: string,
+  dryRun: boolean = true
+): Promise<string> {
+  return withDryRunGuard('argo__terminate_op', { name, uid, dry_run: dryRun }, 'mutate', async () => {
+    if (dryRun) {
+      return JSON.stringify({
+        dryRun: true,
+        message: `Would terminate operation ${uid} for application ${name}`,
+      }, null, 2);
+    }
+
     const client = getArgoClient();
-    
-    await client.delete(`/api/v1/applications/${name}/operations/${uid}`);
+    await client.delete(`/api/v1/applications/${encodeURIComponent(name)}/operations/${encodeURIComponent(uid)}`);
 
     return JSON.stringify({
+      dryRun: false,
       terminated: true,
       application: name,
       operationUid: uid,

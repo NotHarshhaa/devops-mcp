@@ -88,11 +88,20 @@ export async function getLogEntries(incidentId: string): Promise<string> {
   return JSON.stringify(entries, null, 2);
 }
 
-export async function acknowledgeIncident(id: string): Promise<string> {
-  return withDryRunGuard('pd__acknowledge_incident', { id }, 'mutate', async () => {
+export async function acknowledgeIncident(
+  id: string,
+  dryRun: boolean = true
+): Promise<string> {
+  return withDryRunGuard('pd__acknowledge_incident', { id, dry_run: dryRun }, 'mutate', async () => {
+    if (dryRun) {
+      return JSON.stringify({
+        dryRun: true,
+        message: `Would acknowledge incident ${id}`,
+      }, null, 2);
+    }
+
     const client = getPdClient();
-    
-    await client.put(`/incidents/${id}`, {
+    await client.put(`/incidents/${encodeURIComponent(id)}`, {
       incident: {
         type: 'incident',
         status: 'acknowledged',
@@ -100,23 +109,35 @@ export async function acknowledgeIncident(id: string): Promise<string> {
     });
 
     return JSON.stringify({
+      dryRun: false,
       acknowledged: true,
       incidentId: id,
     }, null, 2);
   });
 }
 
-export async function addNote(incidentId: string, note: string): Promise<string> {
-  return withDryRunGuard('pd__add_note', { incidentId, note }, 'mutate', async () => {
+export async function addNote(
+  incidentId: string,
+  note: string,
+  dryRun: boolean = true
+): Promise<string> {
+  return withDryRunGuard('pd__add_note', { incidentId, note, dry_run: dryRun }, 'mutate', async () => {
+    if (dryRun) {
+      return JSON.stringify({
+        dryRun: true,
+        message: `Would add a note to incident ${incidentId}`,
+      }, null, 2);
+    }
+
     const client = getPdClient();
-    
-    await client.post(`/incidents/${incidentId}/notes`, {
+    await client.post(`/incidents/${encodeURIComponent(incidentId)}/notes`, {
       note: {
         content: note,
       },
     });
 
     return JSON.stringify({
+      dryRun: false,
       added: true,
       incidentId,
     }, null, 2);

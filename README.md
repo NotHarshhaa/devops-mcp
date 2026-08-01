@@ -157,7 +157,7 @@ All tools follow a three-tier safety model:
 | `k8s__list_pvcs` | read | PersistentVolumeClaims with status, capacity, storage class |
 | `k8s__list_services` | read | Services with type, ports, selectors, clusterIP, endpoints |
 | `k8s__list_contexts` | read | All kubeconfig contexts and the active one |
-| `k8s__switch_context` | mutate | Switch active context (session-scoped) |
+| `k8s__switch_context` | mutate | Preview a session-scoped context switch; set `dry_run: false` to execute |
 | `k8s__scale_deployment` | mutate | Scale replicas with dry-run diff preview |
 | `k8s__apply_manifest` | mutate | Apply a manifest string with server-side dry-run |
 | `k8s__rollout_restart` | mutate | Trigger rolling restart of a deployment or statefulset |
@@ -173,8 +173,8 @@ All tools follow a three-tier safety model:
 | `argo__get_app_history` | read | Deployment history with git SHAs and timestamps |
 | `argo__get_resource_tree` | read | Full owned resource tree for an app |
 | `argo__sync_app` | mutate | Trigger sync — supports dry-run, prune, force |
-| `argo__rollback_app` | mutate | Roll back to a specific history revision |
-| `argo__terminate_op` | mutate | Cancel an in-progress sync operation |
+| `argo__rollback_app` | mutate | Preview rollback to a history revision; set `dry_run: false` to execute |
+| `argo__terminate_op` | mutate | Preview cancellation of an in-progress sync; set `dry_run: false` to execute |
 
 ### Prometheus (`prom__*`)
 
@@ -243,8 +243,8 @@ This makes incident investigation complete by combining the "what" (metrics) wit
 | `pd__who_is_oncall` | read | Current on-call per schedule or escalation policy |
 | `pd__list_services` | read | All services with integration keys and status |
 | `pd__get_log_entries` | read | Audit log for an incident (all state changes) |
-| `pd__acknowledge_incident` | mutate | Acknowledge — suppresses further notifications |
-| `pd__add_note` | mutate | Append a note to an incident timeline |
+| `pd__acknowledge_incident` | mutate | Preview acknowledgement; set `dry_run: false` to execute |
+| `pd__add_note` | mutate | Preview appending a note; set `dry_run: false` to execute |
 | `pd__escalate_incident` | destructive | Escalate to a different policy — requires `confirm: true` |
 | `pd__summarize_incident` | read | 🚨 **Incident auto-summary** - what happened, affected services, probable root cause, current status |
 
@@ -467,7 +467,7 @@ Connect to `ws://localhost:3000/ws` with the auth token in the `Authorization` h
 - **Mutations are dry-run by default.** Every mutating tool defaults `dry_run: true`. The AI must explicitly pass `dry_run: false` — it won't do this unless the user clearly requests an action.
 - **Destructive tools require `confirm: true`.** This parameter is never passed by default; it requires the user to explicitly approve.
 - **Audit log.** Set `DEVOPS_MCP_AUDIT_LOG` to a file path. Every tool call is written as a JSONL line with timestamp, tool name, parameters, and outcome. Mutations and destructive calls are flagged.
-- **Global dry-run mode.** Set `DEVOPS_MCP_DRY_RUN=true` to prevent all mutations — useful for read-only team deployments.
+- **Global dry-run mode.** Set `DEVOPS_MCP_DRY_RUN=true` to block every executing mutation, even when a caller passes `dry_run: false`. Safe previews remain available — useful for read-only team deployments.
 
 ---
 

@@ -9,6 +9,9 @@ module.exports = {
     '!src/index.ts',
   ],
   moduleFileExtensions: ['ts', 'js', 'json'],
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+  },
   verbose: true,
   transform: {
     '^.+\\.ts$': ['ts-jest', { diagnostics: { ignoreCodes: [151002] } }],

@@ -98,11 +98,12 @@ export function getToolDefinitions() {
     },
     {
       name: 'k8s__switch_context',
-      description: 'Switch active context (session-scoped)',
+      description: 'Switch active context, session-scoped (dry-run by default)',
       inputSchema: {
         type: 'object',
         properties: {
           contextName: { type: 'string' },
+          dry_run: { type: 'boolean', description: 'Preview by default; set false to execute' },
         },
         required: ['contextName'],
       },
@@ -287,7 +288,7 @@ export async function handleTool(name: string, args: any): Promise<string> {
     case 'k8s__list_contexts':
       return await resources.listContexts();
     case 'k8s__switch_context':
-      return await resources.switchContext(args.contextName);
+      return await resources.switchContext(args.contextName, args.dry_run !== false);
     case 'k8s__scale_deployment':
       return await deployments.scaleDeployment(
         args.namespace,

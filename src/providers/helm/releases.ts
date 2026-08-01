@@ -1,4 +1,5 @@
 import { getHelmClient } from './client.js';
+import { withDryRunGuard } from '../../lib/dry-run.js';
 
 export async function listReleases(namespace?: string, allNamespaces?: boolean): Promise<string> {
   const client = getHelmClient();
@@ -37,11 +38,23 @@ export async function getReleaseHistory(name: string, namespace?: string): Promi
   return JSON.stringify(result, null, 2);
 }
 
-export async function rollbackRelease(name: string, revision: number, namespace?: string, dryRun?: boolean): Promise<string> {
-  const client = getHelmClient();
-  const args = ['rollback', name, String(revision)];
-  if (namespace) args.push('--namespace', namespace);
-  if (dryRun) args.push('--dry-run');
-  const output = await client.run(args);
-  return JSON.stringify({ success: true, output: output.trim() });
+export async function rollbackRelease(
+  name: string,
+  revision: number,
+  namespace?: string,
+  dryRun: boolean = true
+): Promise<string> {
+  return withDryRunGuard(
+    'helm__rollback',
+    { name, revision, namespace, dry_run: dryRun },
+    'mutate',
+    async () => {
+      const client = getHelmClient();
+      const args = ['rollback', name, String(revision)];
+      if (namespace) args.push('--namespace', namespace);
+      if (dryRun) args.push('--dry-run');
+      const output = await client.run(args);
+      return JSON.stringify({ dryRun, success: true, output: output.trim() });
+    }
+  );
 }
