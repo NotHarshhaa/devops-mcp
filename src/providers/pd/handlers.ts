@@ -85,7 +85,7 @@ export function getToolDefinitions() {
     },
     {
       name: 'pd__escalate_incident',
-      description: 'Escalate to a different policy — requires confirm: true',
+      description: 'Escalate to a different policy — requires confirm: true or interactive confirmation',
       inputSchema: {
         type: 'object',
         properties: {
@@ -93,7 +93,7 @@ export function getToolDefinitions() {
           escalationPolicyId: { type: 'string' },
           confirm: { type: 'boolean' },
         },
-        required: ['id', 'escalationPolicyId', 'confirm'],
+        required: ['id', 'escalationPolicyId'],
       },
     },
     {

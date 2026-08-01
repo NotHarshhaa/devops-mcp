@@ -65,12 +65,6 @@ export function checkNamespaceAllowed(namespace: string): boolean {
   return config.k8sAllowedNamespaces.includes(namespace);
 }
 
-export function resetClients(): void {
-  coreV1 = null;
-  appsV1 = null;
-  metricsV = null;
-}
-
 export function requireK8sConfig(): void {
   if (!config.kubeconfig) {
     try {

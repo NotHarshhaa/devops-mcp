@@ -139,7 +139,7 @@ export async function switchContext(
   dryRun: boolean = true
 ): Promise<string> {
   return withDryRunGuard('k8s__switch_context', { contextName, dry_run: dryRun }, 'mutate', async () => {
-    const { getKubeConfig, resetClients } = await import('./client.js');
+    const { getKubeConfig } = await import('./client.js');
     const kc = getKubeConfig();
 
     const context = kc.getContexts().find(c => c.name === contextName);
@@ -152,18 +152,13 @@ export async function switchContext(
         dryRun: true,
         currentContext: kc.getCurrentContext(),
         targetContext: contextName,
-        message: `Would switch to context ${contextName}`,
+        message: `Would select context ${contextName}; set K8S_CONTEXT and restart to apply it safely`,
       }, null, 2);
     }
 
-    kc.setCurrentContext(contextName);
-    resetClients();
-
-    return JSON.stringify({
-      dryRun: false,
-      switched: true,
-      context: contextName,
-    }, null, 2);
+    throw new Error(
+      'Runtime Kubernetes context switching is disabled because it would affect other callers. Set K8S_CONTEXT and restart the server instead.'
+    );
   });
 }
 

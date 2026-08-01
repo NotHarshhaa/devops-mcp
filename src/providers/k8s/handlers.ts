@@ -98,7 +98,7 @@ export function getToolDefinitions() {
     },
     {
       name: 'k8s__switch_context',
-      description: 'Switch active context, session-scoped (dry-run by default)',
+      description: 'Preview context selection; set K8S_CONTEXT and restart to apply safely',
       inputSchema: {
         type: 'object',
         properties: {
@@ -150,7 +150,7 @@ export function getToolDefinitions() {
     },
     {
       name: 'k8s__delete_resource',
-      description: 'Delete a named resource — requires confirm: true',
+      description: 'Delete a named resource — requires confirm: true or interactive confirmation',
       inputSchema: {
         type: 'object',
         properties: {
@@ -159,7 +159,7 @@ export function getToolDefinitions() {
           namespace: { type: 'string' },
           confirm: { type: 'boolean' },
         },
-        required: ['resourceType', 'name', 'confirm'],
+        required: ['resourceType', 'name'],
       },
     },
     {

@@ -84,7 +84,7 @@ export const k8sDeleteResourceSchema = z.object({
   resourceType: k8sResourceTypeSchema,
   name: resourceNameSchema,
   namespace: namespaceSchema.optional(),
-  confirm: z.literal(true),
+  confirm: z.literal(true).optional(),
 });
 
 export const argoSyncAppSchema = z.object({
@@ -112,5 +112,5 @@ export const pdAddNoteSchema = z.object({
 export const pdEscalateIncidentSchema = z.object({
   id: pdIncidentIdSchema,
   escalationPolicyId: z.string().min(1),
-  confirm: z.literal(true),
+  confirm: z.literal(true).optional(),
 });

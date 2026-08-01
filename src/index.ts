@@ -1,12 +1,19 @@
 #!/usr/bin/env node
 
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import { createServer } from './server.js';
 
-async function main() {
-  const server = createServer();
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+async function main(): Promise<void> {
+  const handle = serveStdio(createServer, {
+    legacy: 'serve',
+    onerror: error => console.error('MCP stdio error:', error),
+  });
+
+  const shutdown = async (): Promise<void> => {
+    await handle.close();
+  };
+  process.once('SIGINT', () => void shutdown());
+  process.once('SIGTERM', () => void shutdown());
 }
 
 main().catch((error) => {

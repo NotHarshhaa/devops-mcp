@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals
 jest.mock('@kubernetes/client-node', () => ({}));
 
 import { config } from '../src/config';
+import { switchContext } from '../src/providers/k8s/resources';
 import { scaleDeployment } from '../src/providers/k8s/deployments';
 import * as k8sClient from '../src/providers/k8s/client';
 import { rollbackRelease } from '../src/providers/helm/releases';
@@ -40,6 +41,26 @@ describe('provider mutation previews', () => {
     await expect(rollbackRelease('payments', 3, 'production', false))
       .rejects.toThrow('Global dry-run mode is enabled');
     expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not allow runtime context selection to mutate shared process state', async () => {
+    const setCurrentContext = jest.fn();
+    jest.spyOn(k8sClient, 'getKubeConfig').mockReturnValue({
+      getContexts: () => [{ name: 'staging' }, { name: 'production' }],
+      getCurrentContext: () => 'staging',
+      setCurrentContext,
+    } as unknown as ReturnType<typeof k8sClient.getKubeConfig>);
+
+    const preview = JSON.parse(await switchContext('production'));
+    expect(preview).toMatchObject({
+      dryRun: true,
+      currentContext: 'staging',
+      targetContext: 'production',
+    });
+    await expect(switchContext('production', false)).rejects.toThrow(
+      'Runtime Kubernetes context switching is disabled'
+    );
+    expect(setCurrentContext).not.toHaveBeenCalled();
   });
 
   it('uses the Kubernetes default of one replica in scale previews', async () => {

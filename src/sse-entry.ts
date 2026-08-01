@@ -1,16 +1,26 @@
 #!/usr/bin/env node
 
-import express from 'express';
-import { createSSEServer } from './transport/sse.js';
+import { createMcpHttpServer } from './transport/http.js';
 import { config } from './config.js';
 
-async function main() {
-  const app = createSSEServer();
-  const port = config.port || 3000;
-  
-  app.listen(port, () => {
-    console.error(`devops-mcp SSE server listening on port ${port}`);
+async function main(): Promise<void> {
+  const { app, handler } = createMcpHttpServer();
+  const httpServer = app.listen(config.port, config.httpHost, () => {
+    console.error(
+      `devops-mcp stateless HTTP server listening at http://${config.httpHost}:${config.port}/mcp`
+    );
   });
+
+  const shutdown = async (): Promise<void> => {
+    await handler.close();
+    await new Promise<void>((resolve, reject) => {
+      httpServer.close(error => error ? reject(error) : resolve());
+    });
+    process.exit(0);
+  };
+
+  process.once('SIGINT', () => void shutdown());
+  process.once('SIGTERM', () => void shutdown());
 }
 
 main().catch((error) => {

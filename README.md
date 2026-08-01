@@ -79,6 +79,8 @@ claude mcp add devops-mcp -e KUBECONFIG=$HOME/.kube/config \
 
 ### Local dev / test
 
+Requires Node.js 20 or newer.
+
 ```bash
 npx @notharshhaa/devops-mcp
 # or clone and run:
@@ -116,11 +118,15 @@ PAGERDUTY_TOKEN=your-api-v2-token
 LOKI_URL=http://loki.monitoring:3100
 LOKI_TOKEN=your-loki-token
 
-# ── Transport ────────────────────────────────────────────────
+# ── Stateless Streamable HTTP ────────────────────────────────
 # For stdio mode (default): no transport config needed
-# For SSE mode: set these env vars
-PORT=3000                                # SSE mode only
-MCP_AUTH_TOKEN=shared-secret            # Bearer token for SSE authentication
+MCP_HTTP_HOST=127.0.0.1                 # use 0.0.0.0 inside a container
+PORT=3000
+MCP_AUTH_TOKEN=shared-secret            # optional static Bearer token
+MCP_REQUEST_STATE_SECRET=32+-byte-secret # optional MRTR signing key shared by all replicas
+MCP_ALLOWED_HOSTS=localhost,127.0.0.1   # required with non-loopback binding
+MCP_ALLOWED_ORIGINS=                    # optional browser Origin hostname allowlist
+MCP_CACHE_TTL_MS=60000                  # discovery/tools catalog TTL; 0 disables caching
 
 # ── Safety ───────────────────────────────────────────────────
 DEVOPS_MCP_DRY_RUN=false                # true = block all mutations globally
@@ -135,7 +141,7 @@ All tools follow a three-tier safety model:
 
 - **Read** — safe, no side effects, no confirmation needed
 - **Mutate** — defaults to `dry_run: true`; set `dry_run: false` to execute
-- **Destructive** — requires `confirm: true` as an explicit parameter
+- **Destructive** — requires `confirm: true`, or a 2026-07-28 client can complete the server's interactive MRTR confirmation
 
 ### Kubernetes (`k8s__*`)
 
@@ -157,11 +163,11 @@ All tools follow a three-tier safety model:
 | `k8s__list_pvcs` | read | PersistentVolumeClaims with status, capacity, storage class |
 | `k8s__list_services` | read | Services with type, ports, selectors, clusterIP, endpoints |
 | `k8s__list_contexts` | read | All kubeconfig contexts and the active one |
-| `k8s__switch_context` | mutate | Preview a session-scoped context switch; set `dry_run: false` to execute |
+| `k8s__switch_context` | mutate | Preview a context selection; set `K8S_CONTEXT` and restart to apply it safely |
 | `k8s__scale_deployment` | mutate | Scale replicas with dry-run diff preview |
 | `k8s__apply_manifest` | mutate | Apply a manifest string with server-side dry-run |
 | `k8s__rollout_restart` | mutate | Trigger rolling restart of a deployment or statefulset |
-| `k8s__delete_resource` | destructive | Delete a named resource — requires `confirm: true` |
+| `k8s__delete_resource` | destructive | Delete a named resource — requires direct or interactive confirmation |
 
 ### ArgoCD (`argo__*`)
 
@@ -245,7 +251,7 @@ This makes incident investigation complete by combining the "what" (metrics) wit
 | `pd__get_log_entries` | read | Audit log for an incident (all state changes) |
 | `pd__acknowledge_incident` | mutate | Preview acknowledgement; set `dry_run: false` to execute |
 | `pd__add_note` | mutate | Preview appending a note; set `dry_run: false` to execute |
-| `pd__escalate_incident` | destructive | Escalate to a different policy — requires `confirm: true` |
+| `pd__escalate_incident` | destructive | Escalate to a different policy — requires direct or interactive confirmation |
 | `pd__summarize_incident` | read | 🚨 **Incident auto-summary** - what happened, affected services, probable root cause, current status |
 
 #### `pd__summarize_incident`
@@ -432,27 +438,34 @@ npx @notharshhaa/devops-mcp
 KUBECONFIG=~/.kube/config npx @notharshhaa/devops-mcp
 ```
 
-### SSE / HTTP (for shared teams)
+### Stateless Streamable HTTP (shared deployments)
 
-Server runs as a persistent HTTP service. Claude connects over Server-Sent Events. Enables multiple users sharing one server. Needs TLS + a bearer token or mTLS in front. Deploy via Docker on an internal bastion.
-
-```bash
-npx @notharshhaa/devops-mcp-sse
-# or with env vars
-PORT=3000 MCP_AUTH_TOKEN=your-secret npx @notharshhaa/devops-mcp-sse
-```
-
-For team use, put it behind a TLS-terminating reverse proxy (Caddy, nginx, Traefik). A minimal `docker-compose.yml` is in the `examples/` directory.
-
-### WebSocket (optional extra)
-
-Run `@notharshhaa/devops-mcp` with WebSocket transport for real-time bidirectional communication (not in reference implementation).
+The HTTP entry serves MCP at `POST /mcp` using the 2026-07-28 stateless protocol. Each request gets a fresh MCP server instance, so requests can land on any replica without session affinity or shared protocol state. The same endpoint also accepts 2025-era Streamable HTTP clients in stateless compatibility mode.
 
 ```bash
-TRANSPORT=websocket PORT=3000 MCP_AUTH_TOKEN=your-secret npx @notharshhaa/devops-mcp
+MCP_HTTP_HOST=127.0.0.1 \
+PORT=3000 \
+MCP_AUTH_TOKEN=your-secret \
+npx -y -p @notharshhaa/devops-mcp@latest devops-mcp-http
 ```
 
-Connect to `ws://localhost:3000/ws` with the auth token in the `Authorization` header.
+Connect clients to `http://127.0.0.1:3000/mcp`. For a container or remote service, set `MCP_HTTP_HOST=0.0.0.0` and configure `MCP_ALLOWED_HOSTS` with the public/proxy hostnames. Put the service behind TLS for team use.
+
+The deprecated `devops-mcp-sse` binary remains as a temporary alias for the HTTP entry, but `/sse`, `/message`, and `/ws` now return HTTP 410. Legacy HTTP+SSE and non-standard WebSocket clients must migrate to Streamable HTTP.
+
+#### 2026-07-28 behavior
+
+- No `initialize` requirement or `Mcp-Session-Id` on modern requests.
+- `server/discover`, per-request client metadata, and `MCP-Protocol-Version` are handled by the official SDK.
+- `Mcp-Method` and `Mcp-Name` headers are validated against the JSON-RPC body for gateway routing and authorization.
+- `server/discover` and `tools/list` advertise deterministic, public cache hints using `MCP_CACHE_TTL_MS` (default 60 seconds).
+- Destructive tools accept `confirm: true`; modern clients may instead complete an MRTR interactive confirmation. Confirmation state is HMAC-signed, expires after five minutes, and is bound to the exact tool arguments. Global dry-run blocks before prompting.
+- `MCP_REQUEST_STATE_SECRET` must be the same on every replica for MRTR retries to land anywhere. When omitted, the server derives the key from `MCP_AUTH_TOKEN`, or uses a process-local random key when no token is configured.
+- 2025-era Streamable HTTP and stdio clients remain supported. Sessionful HTTP and legacy HTTP+SSE are not.
+
+The built-in `MCP_AUTH_TOKEN` is a static bearer-token gate, not an OAuth authorization server. For Internet-facing deployments, terminate TLS and enforce your organization’s OAuth/OIDC policy at a gateway or integrate a dedicated identity provider; do not use deprecated Dynamic Client Registration for new deployments.
+
+A minimal `docker-compose.yml` is available in `examples/`.
 
 ---
 
@@ -460,12 +473,12 @@ Connect to `ws://localhost:3000/ws` with the auth token in the `Authorization` h
 
 `devops-mcp` is designed for internal use inside a trusted network. That said:
 
-- **Kubernetes:** Uses standard kubeconfig via `@kubernetes/client-node`. Supports exec plugins (AWS EKS, GKE). In-cluster: auto-mounts SA token. Add RBAC rules scoped to your desired permissions — run devops-mcp under a dedicated ServiceAccount with minimal verbs.
+- **Kubernetes:** Uses standard kubeconfig via `@kubernetes/client-node`. Supports exec plugins (AWS EKS, GKE). In-cluster: auto-mounts SA token. Add RBAC rules scoped to your desired permissions — run devops-mcp under a dedicated ServiceAccount with minimal verbs. Context selection is fixed by `K8S_CONTEXT` at startup; the tool only previews changes because runtime switching would affect other callers.
 - **ArgoCD:** Generate a long-lived token: `argocd account generate-token --account devops-mcp`. Create a dedicated account in argocd-cm with apiKey capability and a role limited to read + sync.
 - **Prometheus:** Usually unauthenticated inside a cluster. If using Grafana Mimir or Thanos with auth, pass a Bearer token. All tools are read-only so minimal permissions are needed.
 - **PagerDuty:** Create a dedicated API key in PagerDuty → API Access → Create New API Key. Use Full Access if you want acknowledge/escalate tools; Read-only if you want a safe-only mode.
 - **Mutations are dry-run by default.** Every mutating tool defaults `dry_run: true`. The AI must explicitly pass `dry_run: false` — it won't do this unless the user clearly requests an action.
-- **Destructive tools require `confirm: true`.** This parameter is never passed by default; it requires the user to explicitly approve.
+- **Destructive tools require confirmation.** Pass `confirm: true` directly, or use a 2026-07-28 client that supports the server's MRTR confirmation request. `DEVOPS_MCP_DRY_RUN=true` blocks execution even after confirmation.
 - **Audit log.** Set `DEVOPS_MCP_AUDIT_LOG` to a file path. Every tool call is written as a JSONL line with timestamp, tool name, parameters, and outcome. Mutations and destructive calls are flagged.
 - **Global dry-run mode.** Set `DEVOPS_MCP_DRY_RUN=true` to block every executing mutation, even when a caller passes `dry_run: false`. Safe previews remain available — useful for read-only team deployments.
 
@@ -474,47 +487,40 @@ Connect to `ws://localhost:3000/ws` with the auth token in the `Authorization` h
 ## Architecture
 
 ```
-Client / UI agents (Claude Desktop, Claude Code, etc.)
+Client / UI agents (Claude Desktop, Claude Code, gateways)
        │
        ▼
-  Transport Layer
-  ┌──────────────────────────────┐
-  │ stdio | SSE | WebSocket      │  ← Multiple transport support
-  │ Authentication (token/JWT)    │  ← Dynamic auth system
-  └──────────────────────────────┘
+  MCP v2 Serving Layer
+  ┌──────────────────────────────────────────┐
+  │ serveStdio       │ POST /mcp             │
+  │ 2025 + 2026 eras │ stateless per request │
+  │                  │ routing/header checks │
+  └──────────────────────────────────────────┘
        │
        ▼
-  Server & Auth/Registry
-  ┌──────────────────────────────┐
-  │ Tool registry & routing      │
-  │ Dynamic auth manager         │  ← Session-based auth
-  │ Request multiplexing         │  ← Concurrent request handling
-  │ Audit logging                │
-  └──────────────────────────────┘
+  Server Factory & Tool Registry
+  ┌──────────────────────────────────────────┐
+  │ Fresh protocol instance per HTTP request │
+  │ Deterministic tool catalog + cache hints │
+  │ MRTR confirmation for destructive tools │
+  │ Audit logging and error normalization    │
+  └──────────────────────────────────────────┘
        │
        ▼
-  ┌────┬────┬────┐
-  k8s  argo prom  pd  ← Provider modules
-  │    │    │     │
-  K8s  Argo Prom  PD  ← API clients
-  API  API  HTTP  API
+  ┌─────┬──────┬──────┬──────┬──────┬──────┐
+  k8s   argo   prom   pd     logs   helm
        │
        ▼
-  Cross-cutting Concerns
-  ┌──────────────────────────────┐
-  │ Dry-run guard                │
-  │ Audit logger                 │
-  │ Error normalization          │
-  │ Config loader                │
-  └──────────────────────────────┘
+  Dry-run guard │ Namespace policy │ Provider credentials
 ```
 
 **Key architectural features:**
 
-- **Multi-transport support**: stdio and SSE transports using official MCP SDK
-- **Simple authentication**: Bearer token for SSE transport (matches reference pattern)
-- **Provider isolation**: Each provider (k8s, argo, prom, pd) is a self-contained module
-- **Cross-cutting concerns**: Dry-run enforcement, audit logging, and error normalization applied consistently across all tools
+- **Stateless remote protocol:** each `/mcp` request creates a fresh server instance; no protocol session ID or sticky load balancing.
+- **Dual-era compatibility:** official SDK entries serve 2026-07-28 and compatible 2025-era stdio/Streamable HTTP clients.
+- **Gateway-friendly routing:** modern method and tool headers are validated before dispatch.
+- **Safe caching:** deterministic `tools/list` ordering and configurable public cache hints.
+- **Provider isolation:** each provider remains independently configured and safely skipped when unavailable.
 
 ---
 
@@ -556,7 +562,7 @@ Run against a local kind/minikube cluster for Kubernetes testing. Use `DEVOPS_MC
 - [ ] Terraform Cloud provider (`tfc__*`) — workspace runs, state, variables
 - [ ] HashiCorp Vault provider (`vault__*`) — secret read (never write), lease status
 - [ ] Datadog provider (`dd__*`) — metrics, monitors, events
-- [ ] Web UI for SSE mode — connection status, live audit log, provider health
+- [ ] Web UI for provider health, task progress, and audit events
 
 ---
 
