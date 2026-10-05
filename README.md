@@ -2,7 +2,7 @@
 
 > Unified MCP server for DevOps engineers — query and manage Kubernetes, ArgoCD, Prometheus, and PagerDuty from any MCP-compatible AI agent.
 
-[![npm version](https://img.shields.io/npm/v/devops-mcp)](https://www.npmjs.com/package/devops-mcp)
+[![npm version](https://img.shields.io/npm/v/@notharshhaa/devops-mcp)](https://www.npmjs.com/package/@notharshhaa/devops-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-compatible-blue)](https://modelcontextprotocol.io)
 
@@ -54,6 +54,7 @@ Add this to `~/.config/claude/claude_desktop_config.json` (macOS: `~/Library/App
         "ARGOCD_TOKEN": "your-argocd-token",
         "PROMETHEUS_URL": "http://prometheus.monitoring:9090",
         "PAGERDUTY_TOKEN": "your-pd-api-token",
+        "PAGERDUTY_USER_EMAIL": "you@company.com",
         "LOKI_URL": "http://loki.monitoring:3100",
         "LOKI_TOKEN": "your-loki-token"
       }
@@ -113,6 +114,7 @@ PROMETHEUS_BEARER_TOKEN=                 # optional: for authenticated Prometheu
 
 # ── PagerDuty ────────────────────────────────────────────────
 PAGERDUTY_TOKEN=your-api-v2-token
+PAGERDUTY_USER_EMAIL=you@company.com     # required for PagerDuty incident mutations (From header)
 
 # ── Loki ───────────────────────────────────────────────────
 LOKI_URL=http://loki.monitoring:3100
@@ -149,9 +151,9 @@ All tools follow a three-tier safety model:
 |---|---|---|
 | `k8s__list_pods` | read | List pods with status, restarts, node, age |
 | `k8s__get_pod_logs` | read | Tail or stream logs from a pod container |
-| `k8s__describe_resource` | read | Full describe for any resource type |
+| `k8s__describe_resource` | read | Full describe for any resource type (`pod`, `service`, `configmap`, `secret` [values auto-redacted], `deployment`, `statefulset`, `daemonset`, `job`, `cronjob`) |
 | `k8s__get_events` | read | Cluster or namespace events, filterable by reason |
-| `k8s__list_deployments` | read | Deployments with replica counts and rollout health |
+| `k8s__list_deployments` | read | Deployments with replica counts, rollout health, and container images |
 | `k8s__get_resource_usage` | read | CPU/mem usage per pod via metrics-server |
 | `k8s__get_node_status` | read | Node health, conditions, capacity, allocatable resources, taints |
 | `k8s__get_network_policies` | read | Network policies with pod selectors and ingress/egress rules |
@@ -167,7 +169,7 @@ All tools follow a three-tier safety model:
 | `k8s__scale_deployment` | mutate | Scale replicas with dry-run diff preview |
 | `k8s__apply_manifest` | mutate | Apply a manifest string with server-side dry-run |
 | `k8s__rollout_restart` | mutate | Trigger rolling restart of a deployment or statefulset |
-| `k8s__delete_resource` | destructive | Delete a named resource — requires direct or interactive confirmation |
+| `k8s__delete_resource` | destructive | Delete a named resource (`pod`, `service`, `configmap`, `secret`, `deployment`, `statefulset`, `daemonset`, `job`, `cronjob`) — requires direct or interactive confirmation |
 
 ### ArgoCD (`argo__*`)
 
@@ -518,6 +520,9 @@ Client / UI agents (Claude Desktop, Claude Code, gateways)
 
 - **Stateless remote protocol:** each `/mcp` request creates a fresh server instance; no protocol session ID or sticky load balancing.
 - **Dual-era compatibility:** official SDK entries serve 2026-07-28 and compatible 2025-era stdio/Streamable HTTP clients.
+- **Runtime schema validation:** Zod schemas validate tool parameters before dispatch, providing clear, structured error feedback on invalid inputs.
+- **Strict namespace isolation:** `K8S_ALLOWED_NAMESPACES` restricts queries and mutations across Kubernetes, Helm, and Loki providers, preventing cross-tenant leakage.
+- **Credential & secret safety:** Secret payload data is automatically masked and redacted in resource describe operations.
 - **Gateway-friendly routing:** modern method and tool headers are validated before dispatch.
 - **Safe caching:** deterministic `tools/list` ordering and configurable public cache hints.
 - **Provider isolation:** each provider remains independently configured and safely skipped when unavailable.
