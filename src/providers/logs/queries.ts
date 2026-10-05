@@ -1,3 +1,4 @@
+import { config, checkNamespaceAllowed } from '../../config.js';
 import { getLokiClient } from './client.js';
 
 interface LokiResult {
@@ -72,18 +73,27 @@ export async function getRecentErrors(
   minutes: number = 60,
   limit: number = 50
 ): Promise<string> {
+  if (namespace && !checkNamespaceAllowed(namespace)) {
+    throw new Error(`Namespace "${namespace}" is not allowed`);
+  }
+
   const client = await getLokiClient();
   
-  const ns = namespace || 'default';
   const endTime = new Date().toISOString();
   const startTime = new Date(Date.now() - minutes * 60 * 1000).toISOString();
   
   // Build LogQL query for recent errors
-  const escapedNamespace = escapeLogqlString(ns);
   const escapedService = escapeLogqlString(service);
-  const query = namespace
-    ? `{namespace="${escapedNamespace}",service="${escapedService}"} |~ "level=(error|Error|ERROR)"`
-    : `{service="${escapedService}"} |~ "level=(error|Error|ERROR)"`;
+  let query: string;
+  if (namespace) {
+    const escapedNamespace = escapeLogqlString(namespace);
+    query = `{namespace="${escapedNamespace}",service="${escapedService}"} |~ "level=(error|Error|ERROR)"`;
+  } else if (config.k8sAllowedNamespaces && config.k8sAllowedNamespaces.length > 0) {
+    const nsRegex = config.k8sAllowedNamespaces.map(escapeLogqlString).join('|');
+    query = `{namespace=~"${nsRegex}",service="${escapedService}"} |~ "level=(error|Error|ERROR)"`;
+  } else {
+    query = `{service="${escapedService}"} |~ "level=(error|Error|ERROR)"`;
+  }
   
   const params = new URLSearchParams({
     query,
@@ -93,33 +103,24 @@ export async function getRecentErrors(
     direction: 'backward', // Get most recent first
   });
   
-  try {
-    const result = await client.get(`/loki/api/v1/query_range?${params.toString()}`);
-    
-    if (result.status !== 'success') {
-      throw new Error(`Loki query failed: ${result.error}`);
-    }
-    
-    const logs = result.data?.result || [];
-    const formattedLogs = formatLokiStreams(logs);
-    
-    return JSON.stringify({
-      query,
-      timeRange: { start: startTime, end: endTime },
-      totalEntries: formattedLogs.length,
-      errorCount: formattedLogs.filter((log: LogEntry) => 
-        log.level.toLowerCase().includes('error')
-      ).length,
-      logs: formattedLogs,
-    }, null, 2);
-    
-  } catch (error) {
-    return JSON.stringify({
-      error: `Failed to query Loki: ${(error as Error).message}`,
-      query,
-      timeRange: { start: startTime, end: endTime },
-    }, null, 2);
+  const result = await client.get(`/loki/api/v1/query_range?${params.toString()}`);
+  
+  if (result.status !== 'success') {
+    throw new Error(`Loki query failed: ${result.error || 'Unknown error'}`);
   }
+  
+  const logs = result.data?.result || [];
+  const formattedLogs = formatLokiStreams(logs);
+  
+  return JSON.stringify({
+    query,
+    timeRange: { start: startTime, end: endTime },
+    totalEntries: formattedLogs.length,
+    errorCount: formattedLogs.filter((log: LogEntry) => 
+      log.level.toLowerCase().includes('error')
+    ).length,
+    logs: formattedLogs,
+  }, null, 2);
 }
 
 export async function search(
@@ -128,6 +129,13 @@ export async function search(
   end?: string,
   limit: number = 100
 ): Promise<string> {
+  if (config.k8sAllowedNamespaces && config.k8sAllowedNamespaces.length > 0) {
+    const nsMatch = query.match(/namespace\s*=\s*"([^"]+)"/);
+    if (nsMatch && !checkNamespaceAllowed(nsMatch[1])) {
+      throw new Error(`Namespace "${nsMatch[1]}" is not allowed`);
+    }
+  }
+
   const client = await getLokiClient();
   
   const now = new Date();
@@ -142,30 +150,21 @@ export async function search(
     direction: 'backward',
   });
   
-  try {
-    const result = await client.get(`/loki/api/v1/query_range?${params.toString()}`);
-    
-    if (result.status !== 'success') {
-      throw new Error(`Loki search failed: ${result.error}`);
-    }
-    
-    const logs = result.data.result || [];
-    const formattedLogs = formatLokiStreams(logs);
-    
-    return JSON.stringify({
-      query,
-      timeRange: { start: startTime, end: endTime },
-      totalEntries: formattedLogs.length,
-      logs: formattedLogs,
-    }, null, 2);
-    
-  } catch (error) {
-    return JSON.stringify({
-      error: `Failed to search Loki: ${(error as Error).message}`,
-      query,
-      timeRange: { start: startTime, end: endTime },
-    }, null, 2);
+  const result = await client.get(`/loki/api/v1/query_range?${params.toString()}`);
+  
+  if (result.status !== 'success') {
+    throw new Error(`Loki search failed: ${result.error || 'Unknown error'}`);
   }
+  
+  const logs = result.data?.result || [];
+  const formattedLogs = formatLokiStreams(logs);
+  
+  return JSON.stringify({
+    query,
+    timeRange: { start: startTime, end: endTime },
+    totalEntries: formattedLogs.length,
+    logs: formattedLogs,
+  }, null, 2);
 }
 
 // Helper functions to extract structured information from log entries

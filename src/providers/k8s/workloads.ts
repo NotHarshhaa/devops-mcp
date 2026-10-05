@@ -4,7 +4,7 @@ import * as k8s from '@kubernetes/client-node';
 export async function listCronJobs(namespace?: string): Promise<string> {
   const ns = namespace || 'default';
   if (!checkNamespaceAllowed(ns)) {
-    return JSON.stringify({ error: `Namespace "${ns}" is not allowed` }, null, 2);
+    throw new Error(`Namespace "${ns}" is not allowed`);
   }
   const kc = getKubeConfig();
   const batchV1 = kc.makeApiClient(k8s.BatchV1Api);
@@ -23,7 +23,7 @@ export async function listCronJobs(namespace?: string): Promise<string> {
 export async function getCronJobStatus(name: string, namespace?: string): Promise<string> {
   const ns = namespace || 'default';
   if (!checkNamespaceAllowed(ns)) {
-    return JSON.stringify({ error: `Namespace "${ns}" is not allowed` }, null, 2);
+    throw new Error(`Namespace "${ns}" is not allowed`);
   }
   const kc = getKubeConfig();
   const batchV1 = kc.makeApiClient(k8s.BatchV1Api);
@@ -54,7 +54,7 @@ export async function getCronJobStatus(name: string, namespace?: string): Promis
 export async function listServices(namespace?: string): Promise<string> {
   const ns = namespace || 'default';
   if (!checkNamespaceAllowed(ns)) {
-    return JSON.stringify({ error: `Namespace "${ns}" is not allowed` }, null, 2);
+    throw new Error(`Namespace "${ns}" is not allowed`);
   }
   const coreV1 = getCoreV1();
   const res = await coreV1.listNamespacedService({ namespace: ns });
@@ -76,7 +76,7 @@ export async function listServices(namespace?: string): Promise<string> {
 export async function listPVCs(namespace?: string): Promise<string> {
   const ns = namespace || 'default';
   if (!checkNamespaceAllowed(ns)) {
-    return JSON.stringify({ error: `Namespace "${ns}" is not allowed` }, null, 2);
+    throw new Error(`Namespace "${ns}" is not allowed`);
   }
   const coreV1 = getCoreV1();
   const res = await coreV1.listNamespacedPersistentVolumeClaim({ namespace: ns });
@@ -94,7 +94,7 @@ export async function listPVCs(namespace?: string): Promise<string> {
 export async function getHPA(namespace?: string, name?: string): Promise<string> {
   const ns = namespace || 'default';
   if (!checkNamespaceAllowed(ns)) {
-    return JSON.stringify({ error: `Namespace "${ns}" is not allowed` }, null, 2);
+    throw new Error(`Namespace "${ns}" is not allowed`);
   }
   const kc = getKubeConfig();
   const autoscalingV2 = kc.makeApiClient(k8s.AutoscalingV2Api);
@@ -110,17 +110,33 @@ export async function getHPA(namespace?: string, name?: string): Promise<string>
 }
 
 function formatHPA(hpa: k8s.V2HorizontalPodAutoscaler) {
+  const currentMetrics = hpa.status?.currentMetrics || [];
+  const specMetrics = hpa.spec?.metrics || [];
+
+  const metrics = specMetrics.length > 0
+    ? specMetrics.map((sm, i) => {
+        const matchingCurrent = currentMetrics.find(
+          cm => cm.type === sm.type && cm.resource?.name === sm.resource?.name
+        ) || currentMetrics[i];
+        return {
+          type: sm.type,
+          current: matchingCurrent?.resource?.current || matchingCurrent?.pods?.current || matchingCurrent?.object?.current || matchingCurrent?.external?.current || null,
+          target: sm.resource?.target || sm.pods?.target || sm.object?.target || sm.external?.target || null,
+        };
+      })
+    : currentMetrics.map(cm => ({
+        type: cm.type,
+        current: cm.resource?.current || cm.pods?.current || cm.object?.current || cm.external?.current || null,
+        target: null,
+      }));
+
   return {
     name: hpa.metadata?.name,
     minReplicas: hpa.spec?.minReplicas,
     maxReplicas: hpa.spec?.maxReplicas,
     currentReplicas: hpa.status?.currentReplicas,
     desiredReplicas: hpa.status?.desiredReplicas,
-    metrics: (hpa.status?.currentMetrics || []).map((m, i) => ({
-      type: m.type,
-      current: m.resource?.current || m.pods?.current || m.object?.current || m.external?.current,
-      target: hpa.spec?.metrics?.[i]?.resource?.target || hpa.spec?.metrics?.[i]?.pods?.target || hpa.spec?.metrics?.[i]?.object?.target || hpa.spec?.metrics?.[i]?.external?.target,
-    })),
+    metrics,
     conditions: (hpa.status?.conditions || []).map(c => ({
       type: c.type,
       status: c.status,

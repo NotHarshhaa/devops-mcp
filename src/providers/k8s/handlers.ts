@@ -103,7 +103,7 @@ export function getToolDefinitions() {
         type: 'object',
         properties: {
           contextName: { type: 'string' },
-          dry_run: { type: 'boolean', description: 'Preview by default; set false to execute' },
+          dry_run: { type: 'boolean', description: 'Preview by default; runtime switching is disabled to prevent shared process state mutation' },
         },
         required: ['contextName'],
       },

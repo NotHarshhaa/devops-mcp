@@ -106,11 +106,13 @@ export async function explainChange(service: string, namespace?: string, timefra
       
       if (deployment) {
         findings.push(`- Deployment: ${deployment.name}`);
-        findings.push(`- Replicas: ${deployment.readyReplicas || 0}/${deployment.replicas || 0} ready`);
+        const readyCount = deployment.ready ?? deployment.readyReplicas ?? 0;
+        const desiredCount = deployment.replicas ?? 0;
+        findings.push(`- Replicas: ${readyCount}/${desiredCount} ready`);
         findings.push(`- Updated: ${deployment.updated || 'Unknown'}`);
         
         // Check for rollout issues
-        if (deployment.readyReplicas !== deployment.replicas) {
+        if (readyCount !== desiredCount) {
           findings.push(`  ⚠️ Deployment not fully ready - possible ongoing rollout`);
         }
         
@@ -297,8 +299,12 @@ export async function explainChange(service: string, namespace?: string, timefra
   }
   
   // Check Kubernetes rollout status
-  if (data.kubernetes?.deployment && data.kubernetes.deployment.readyReplicas !== data.kubernetes.deployment.replicas) {
-    summary.push(`⚠️ **Kubernetes rollout incomplete**: ${data.kubernetes.deployment.readyReplicas}/${data.kubernetes.deployment.replicas} replicas ready`);
+  if (data.kubernetes?.deployment) {
+    const readyCount = data.kubernetes.deployment.ready ?? data.kubernetes.deployment.readyReplicas ?? 0;
+    const desiredCount = data.kubernetes.deployment.replicas ?? 0;
+    if (readyCount !== desiredCount) {
+      summary.push(`⚠️ **Kubernetes rollout incomplete**: ${readyCount}/${desiredCount} replicas ready`);
+    }
   }
   
   if (summary.length === 0) {

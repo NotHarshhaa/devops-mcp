@@ -9,7 +9,7 @@ export class ArgoCDClient {
     requireConfig(config.argocdServer, 'ARGOCD_SERVER');
     requireConfig(config.argocdToken, 'ARGOCD_TOKEN');
     
-    this.baseUrl = config.argocdServer!;
+    this.baseUrl = config.argocdServer!.replace(/\/+$/, '');
     this.token = config.argocdToken!;
   }
 
@@ -17,9 +17,11 @@ export class ArgoCDClient {
     path: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const url = `${this.baseUrl}${path}`;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    const url = `${this.baseUrl}${cleanPath}`;
     
     const response = await fetch(url, {
+      signal: options.signal || AbortSignal.timeout(30_000),
       ...options,
       headers: {
         'Authorization': `Bearer ${this.token}`,

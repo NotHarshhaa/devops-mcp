@@ -1,5 +1,6 @@
 import { getCoreV1, getAppsV1, getKubeConfig, checkNamespaceAllowed } from './client.js';
 import { withDryRunGuard } from '../../lib/dry-run.js';
+import { config } from '../../config.js';
 import * as k8s from '@kubernetes/client-node';
 
 export async function describeResource(
@@ -32,11 +33,47 @@ export async function describeResource(
     case 'secret':
       if (!namespace) throw new Error('Namespace required for secrets');
       details = await coreV1.readNamespacedSecret({ name, namespace });
+      // Redact sensitive secret data values to prevent credential leakage
+      if (details?.data) {
+        const redacted: Record<string, string> = {};
+        for (const key of Object.keys(details.data)) {
+          const byteLength = Buffer.from(details.data[key], 'base64').length;
+          redacted[key] = `[REDACTED ${byteLength} bytes]`;
+        }
+        details.data = redacted;
+      }
+      if (details?.stringData) {
+        const redacted: Record<string, string> = {};
+        for (const key of Object.keys(details.stringData)) {
+          redacted[key] = '[REDACTED]';
+        }
+        details.stringData = redacted;
+      }
       break;
     case 'deployment':
       if (!namespace) throw new Error('Namespace required for deployments');
       details = await appsV1.readNamespacedDeployment({ name, namespace });
       break;
+    case 'statefulset':
+      if (!namespace) throw new Error('Namespace required for statefulsets');
+      details = await appsV1.readNamespacedStatefulSet({ name, namespace });
+      break;
+    case 'daemonset':
+      if (!namespace) throw new Error('Namespace required for daemonsets');
+      details = await appsV1.readNamespacedDaemonSet({ name, namespace });
+      break;
+    case 'job': {
+      if (!namespace) throw new Error('Namespace required for jobs');
+      const batchV1 = getKubeConfig().makeApiClient(k8s.BatchV1Api);
+      details = await batchV1.readNamespacedJob({ name, namespace });
+      break;
+    }
+    case 'cronjob': {
+      if (!namespace) throw new Error('Namespace required for cronjobs');
+      const batchV1 = getKubeConfig().makeApiClient(k8s.BatchV1Api);
+      details = await batchV1.readNamespacedCronJob({ name, namespace });
+      break;
+    }
     default:
       throw new Error(`Unsupported resource type: ${resourceType}`);
   }
@@ -50,8 +87,14 @@ export async function getEvents(
 ): Promise<string> {
   const coreV1 = getCoreV1();
   
-  if (namespace && !checkNamespaceAllowed(namespace)) {
-    throw new Error(`Namespace "${namespace}" is not allowed`);
+  if (namespace) {
+    if (!checkNamespaceAllowed(namespace)) {
+      throw new Error(`Namespace "${namespace}" is not allowed`);
+    }
+  } else if (config.k8sAllowedNamespaces && config.k8sAllowedNamespaces.length > 0) {
+    throw new Error(
+      `Namespace must be specified when K8S_ALLOWED_NAMESPACES is configured. Allowed: ${config.k8sAllowedNamespaces.join(', ')}`
+    );
   }
 
   const res = namespace
@@ -103,9 +146,25 @@ export async function deleteResource(
         if (!namespace) throw new Error('Namespace required for services');
         await coreV1.deleteNamespacedService({ name, namespace });
         break;
+      case 'configmap':
+        if (!namespace) throw new Error('Namespace required for configmaps');
+        await coreV1.deleteNamespacedConfigMap({ name, namespace });
+        break;
+      case 'secret':
+        if (!namespace) throw new Error('Namespace required for secrets');
+        await coreV1.deleteNamespacedSecret({ name, namespace });
+        break;
       case 'deployment':
         if (!namespace) throw new Error('Namespace required for deployments');
         await appsV1.deleteNamespacedDeployment({ name, namespace });
+        break;
+      case 'statefulset':
+        if (!namespace) throw new Error('Namespace required for statefulsets');
+        await appsV1.deleteNamespacedStatefulSet({ name, namespace });
+        break;
+      case 'daemonset':
+        if (!namespace) throw new Error('Namespace required for daemonsets');
+        await appsV1.deleteNamespacedDaemonSet({ name, namespace });
         break;
       default:
         throw new Error(`Unsupported resource type for deletion: ${resourceType}`);

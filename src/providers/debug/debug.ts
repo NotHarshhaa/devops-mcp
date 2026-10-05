@@ -93,9 +93,11 @@ export async function debugService(service: string, namespace?: string): Promise
         
         if (deployment) {
           diagnosis.kubernetes.deployment = deployment;
-          findings.push(`- Deployment status: ${deployment.readyReplicas || 0}/${deployment.replicas || 0} replicas ready`);
+          const readyCount = deployment.ready ?? deployment.readyReplicas ?? 0;
+          const desiredCount = deployment.replicas ?? 0;
+          findings.push(`- Deployment status: ${readyCount}/${desiredCount} replicas ready`);
           
-          if (deployment.readyReplicas !== deployment.replicas) {
+          if (readyCount !== desiredCount) {
             findings.push(`  ⚠️ Deployment not fully ready`);
           }
         }
@@ -213,9 +215,6 @@ export async function debugService(service: string, namespace?: string): Promise
       findings.push('\n## Prometheus Metrics');
       
       // Query error rate (last 10 minutes)
-      const endTime = Math.floor(Date.now() / 1000);
-      const startTime = endTime - 600; // 10 minutes ago
-      
       try {
         // Common error rate query patterns
         const errorRateQuery = `rate(http_requests_total{job="${service}",code=~"5.."}[5m]) or rate(http_requests_total{namespace="${ns}",code=~"5.."}[5m])`;

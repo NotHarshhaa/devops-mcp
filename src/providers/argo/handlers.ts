@@ -94,10 +94,10 @@ export function getToolDefinitions() {
         type: 'object',
         properties: {
           name: { type: 'string' },
-          uid: { type: 'string' },
+          uid: { type: 'string', description: 'Optional operation UID' },
           dry_run: { type: 'boolean', description: 'Preview by default; set false to execute' },
         },
-        required: ['name', 'uid'],
+        required: ['name'],
       },
     },
   ];

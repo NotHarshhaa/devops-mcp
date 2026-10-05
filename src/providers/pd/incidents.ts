@@ -28,7 +28,7 @@ export async function listIncidents(statuses?: string[]): Promise<string> {
 
 export async function getIncident(id: string): Promise<string> {
   const client = getPdClient();
-  const result = await client.get(`/incidents/${id}`);
+  const result = await client.get(`/incidents/${encodeURIComponent(id)}`);
   return JSON.stringify(result.incident, null, 2);
 }
 
@@ -44,7 +44,7 @@ export async function whoIsOncall(scheduleIds?: string[]): Promise<string> {
 
   const onCallData = await Promise.all(
     ids.map(async (id) => {
-      const result = await client.get(`/schedules/${id}/oncall_users`);
+      const result = await client.get(`/schedules/${encodeURIComponent(id)}/oncall_users`);
       return {
         scheduleId: id,
         users: result.oncall_users.map((u: any) => ({
@@ -75,7 +75,7 @@ export async function listServices(): Promise<string> {
 
 export async function getLogEntries(incidentId: string): Promise<string> {
   const client = getPdClient();
-  const result = await client.get(`/incidents/${incidentId}/log_entries`);
+  const result = await client.get(`/incidents/${encodeURIComponent(incidentId)}/log_entries`);
   
   const entries = result.log_entries.map((e: any) => ({
     id: e.id,
@@ -152,7 +152,7 @@ export async function escalateIncident(
   return withDryRunGuard('pd__escalate_incident', { id, escalationPolicyId, confirm }, 'destructive', async () => {
     const client = getPdClient();
     
-    await client.put(`/incidents/${id}`, {
+    await client.put(`/incidents/${encodeURIComponent(id)}`, {
       incident: {
         type: 'incident',
         escalation_policy: {
@@ -174,11 +174,11 @@ export async function summarizeIncident(id: string): Promise<string> {
   const client = getPdClient();
   
   // Get incident details
-  const incidentResult = await client.get(`/incidents/${id}`);
+  const incidentResult = await client.get(`/incidents/${encodeURIComponent(id)}`);
   const incident = incidentResult.incident;
   
   // Get log entries for timeline analysis
-  const logResult = await client.get(`/incidents/${id}/log_entries`);
+  const logResult = await client.get(`/incidents/${encodeURIComponent(id)}/log_entries`);
   const logEntries = logResult.log_entries;
   
   // Get alerts to understand what triggered the incident
@@ -224,9 +224,11 @@ export async function summarizeIncident(id: string): Promise<string> {
 }
 
 function calculateDuration(createdAt: string, updatedAt: string): string {
+  if (!createdAt || !updatedAt) return 'unknown';
   const start = new Date(createdAt);
   const end = new Date(updatedAt);
-  const durationMs = end.getTime() - start.getTime();
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return 'unknown';
+  const durationMs = Math.max(0, end.getTime() - start.getTime());
   
   const hours = Math.floor(durationMs / (1000 * 60 * 60));
   const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));

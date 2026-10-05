@@ -19,12 +19,13 @@ import * as pdHandlers from './providers/pd/handlers.js';
 import * as debugHandlers from './providers/debug/handlers.js';
 import * as logsHandlers from './providers/logs/handlers.js';
 import * as helmHandlers from './providers/helm/handlers.js';
+import { TOOL_SCHEMAS } from './lib/schemas.js';
 import { normalizeError } from './lib/errors.js';
 import { config } from './config.js';
 
 export const SERVER_INFO = {
   name: 'devops-mcp',
-  version: '2.1.0',
+  version: '2.1.1',
 } as const;
 
 export function getToolDefinitions(): ListToolsResult['tools'] {
@@ -228,6 +229,16 @@ export function createServer(): Server {
       try {
         const confirmation = await requestDestructiveConfirmation(name, args, ctx);
         if (confirmation) return confirmation;
+
+        const schema = TOOL_SCHEMAS[name];
+        if (schema) {
+          const parsed = schema.safeParse(args);
+          if (!parsed.success) {
+            const issues = parsed.error.issues.map(i => `${i.path.join('.') || 'root'}: ${i.message}`).join(', ');
+            return toolError(`Error: Invalid arguments for ${name}: ${issues}`);
+          }
+          Object.assign(args, parsed.data);
+        }
 
         let result: string;
 

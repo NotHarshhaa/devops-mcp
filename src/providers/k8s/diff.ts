@@ -1,5 +1,4 @@
 import { getCoreV1, getAppsV1, checkNamespaceAllowed } from './client.js';
-import * as k8s from '@kubernetes/client-node';
 
 function deepDiff(prev: any, current: any, path: string = ''): any[] {
   const changes: any[] = [];
@@ -51,11 +50,19 @@ export async function diffResource(resourceType: string, name: string, namespace
   const resource = await fetchResource(resourceType, name, ns);
   const lastApplied = resource?.metadata?.annotations?.['kubectl.kubernetes.io/last-applied-configuration'];
 
-  if (!lastApplied) {
-    return { resourceType, name, namespace: ns, hasChanges: false, changes: [], note: 'No last-applied-configuration annotation found' };
+  let prev: any;
+  try {
+    prev = JSON.parse(lastApplied);
+  } catch {
+    return {
+      resourceType,
+      name,
+      namespace: ns,
+      hasChanges: false,
+      changes: [],
+      note: 'Failed to parse last-applied-configuration annotation as JSON',
+    };
   }
-
-  const prev = JSON.parse(lastApplied);
   const current = JSON.parse(JSON.stringify(resource));
 
   // Remove managed fields and status for cleaner diff

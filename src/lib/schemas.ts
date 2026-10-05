@@ -84,7 +84,7 @@ export const k8sDeleteResourceSchema = z.object({
   resourceType: k8sResourceTypeSchema,
   name: resourceNameSchema,
   namespace: namespaceSchema.optional(),
-  confirm: z.literal(true).optional(),
+  confirm: z.boolean().optional(),
 });
 
 export const argoSyncAppSchema = z.object({
@@ -112,5 +112,19 @@ export const pdAddNoteSchema = z.object({
 export const pdEscalateIncidentSchema = z.object({
   id: pdIncidentIdSchema,
   escalationPolicyId: z.string().min(1),
-  confirm: z.literal(true).optional(),
+  confirm: z.boolean().optional(),
 });
+
+export const TOOL_SCHEMAS: Record<string, z.ZodTypeAny> = {
+  k8s__list_pods: k8sListPodsSchema,
+  k8s__get_pod_logs: k8sGetPodLogsSchema,
+  k8s__describe_resource: k8sDescribeResourceSchema,
+  k8s__scale_deployment: k8sScaleDeploymentSchema,
+  k8s__delete_resource: k8sDeleteResourceSchema,
+  argo__sync_app: argoSyncAppSchema,
+  prom__query: promQuerySchema,
+  prom__query_range: promQueryRangeSchema,
+  pd__acknowledge_incident: pdAcknowledgeIncidentSchema,
+  pd__add_note: pdAddNoteSchema,
+  pd__escalate_incident: pdEscalateIncidentSchema,
+};

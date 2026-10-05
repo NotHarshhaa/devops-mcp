@@ -58,12 +58,7 @@ export function getMetrics(): k8s.Metrics {
   return metricsV;
 }
 
-export function checkNamespaceAllowed(namespace: string): boolean {
-  if (!config.k8sAllowedNamespaces || config.k8sAllowedNamespaces.length === 0) {
-    return true;
-  }
-  return config.k8sAllowedNamespaces.includes(namespace);
-}
+export { checkNamespaceAllowed } from '../../config.js';
 
 export function requireK8sConfig(): void {
   if (!config.kubeconfig) {

@@ -18,6 +18,7 @@ export interface Config {
 
   // PagerDuty
   pagerdutyToken?: string;
+  pagerdutyUserEmail?: string;
 
   // Loki
   lokiUrl?: string;
@@ -82,6 +83,7 @@ export function loadConfig(): Config {
     prometheusBearerToken: process.env.PROMETHEUS_BEARER_TOKEN,
 
     pagerdutyToken: process.env.PAGERDUTY_TOKEN,
+    pagerdutyUserEmail: process.env.PAGERDUTY_USER_EMAIL,
 
     lokiUrl: process.env.LOKI_URL,
     lokiToken: process.env.LOKI_TOKEN,
@@ -106,3 +108,10 @@ export function loadConfig(): Config {
 }
 
 export const config = loadConfig();
+
+export function checkNamespaceAllowed(namespace: string): boolean {
+  if (!config.k8sAllowedNamespaces || config.k8sAllowedNamespaces.length === 0) {
+    return true;
+  }
+  return config.k8sAllowedNamespaces.includes(namespace);
+}

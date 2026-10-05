@@ -25,6 +25,10 @@ interface HealthSummary {
   };
 }
 
+function escapePromql(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
 export async function summarizeServiceHealth(
   service: string,
   namespace?: string,
@@ -32,6 +36,8 @@ export async function summarizeServiceHealth(
   sloThreshold: number = 0.05
 ): Promise<string> {
   const ns = namespace || 'default';
+  const safeService = escapePromql(service);
+  const safeNs = escapePromql(ns);
   const summary: HealthSummary = {
     service,
     namespace: ns,
@@ -53,7 +59,7 @@ export async function summarizeServiceHealth(
 
   // 1. Latency Analysis
   try {
-    const latencyQuery = `rate(http_request_duration_seconds_sum{job="${service}"}[5m]) / rate(http_request_duration_seconds_count{job="${service}"}[5m]) or rate(http_request_duration_seconds_sum{namespace="${ns}"}[5m]) / rate(http_request_duration_seconds_count{namespace="${ns}"}[5m])`;
+    const latencyQuery = `rate(http_request_duration_seconds_sum{job="${safeService}"}[5m]) / rate(http_request_duration_seconds_count{job="${safeService}"}[5m]) or rate(http_request_duration_seconds_sum{namespace="${safeNs}"}[5m]) / rate(http_request_duration_seconds_count{namespace="${safeNs}"}[5m])`;
     
     // Get recent latency (last half of timeframe)
     const recentLatencyJson = await queries.queryRange(
@@ -113,7 +119,7 @@ export async function summarizeServiceHealth(
 
   // 2. Error Rate Analysis
   try {
-    const errorRateQuery = `rate(http_requests_total{job="${service}",code=~"5.."}[5m]) / rate(http_requests_total{job="${service}"}[5m]) or rate(http_requests_total{namespace="${ns}",code=~"5.."}[5m]) / rate(http_requests_total{namespace="${ns}"}[5m])`;
+    const errorRateQuery = `rate(http_requests_total{job="${safeService}",code=~"5.."}[5m]) / rate(http_requests_total{job="${safeService}"}[5m]) or rate(http_requests_total{namespace="${safeNs}",code=~"5.."}[5m]) / rate(http_requests_total{namespace="${safeNs}"}[5m])`;
     
     // Get recent error rate
     const recentErrorJson = await queries.queryRange(
@@ -175,7 +181,7 @@ export async function summarizeServiceHealth(
 
   // 3. Traffic Analysis
   try {
-    const trafficQuery = `rate(http_requests_total{job="${service}"}[5m]) or rate(http_requests_total{namespace="${ns}"}[5m])`;
+    const trafficQuery = `rate(http_requests_total{job="${safeService}"}[5m]) or rate(http_requests_total{namespace="${safeNs}"}[5m])`;
     
     // Get recent traffic
     const recentTrafficJson = await queries.queryRange(

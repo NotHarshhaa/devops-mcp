@@ -8,7 +8,7 @@ export class PrometheusClient {
   constructor() {
     requireConfig(config.prometheusUrl, 'PROMETHEUS_URL');
     
-    this.baseUrl = config.prometheusUrl!;
+    this.baseUrl = config.prometheusUrl!.replace(/\/+$/, '');
     this.bearerToken = config.prometheusBearerToken;
   }
 
@@ -16,7 +16,8 @@ export class PrometheusClient {
     path: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const url = `${this.baseUrl}${path}`;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    const url = `${this.baseUrl}${cleanPath}`;
     
     const headers: Record<string, string> = {
       ...options.headers as Record<string, string>,
@@ -27,6 +28,7 @@ export class PrometheusClient {
     }
 
     const response = await fetch(url, {
+      signal: options.signal || AbortSignal.timeout(30_000),
       ...options,
       headers,
     });
@@ -44,10 +46,15 @@ export class PrometheusClient {
   }
 
   async post(path: string, body: any): Promise<any> {
+    const isUrlEncoded = body instanceof URLSearchParams;
     return this.request(path, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body instanceof URLSearchParams ? body.toString() : JSON.stringify(body),
+      headers: {
+        'Content-Type': isUrlEncoded
+          ? 'application/x-www-form-urlencoded'
+          : 'application/json',
+      },
+      body: isUrlEncoded ? body.toString() : JSON.stringify(body),
     });
   }
 }

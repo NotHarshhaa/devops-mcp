@@ -1,5 +1,6 @@
-import { getAppsV1, getCoreV1, checkNamespaceAllowed } from './client.js';
+import { getAppsV1, checkNamespaceAllowed } from './client.js';
 import { withDryRunGuard } from '../../lib/dry-run.js';
+import { setHeaderOptions, PatchStrategy } from '@kubernetes/client-node';
 
 export async function listDeployments(namespace?: string): Promise<string> {
   const appsV1 = getAppsV1();
@@ -16,9 +17,11 @@ export async function listDeployments(namespace?: string): Promise<string> {
     namespace: depl.metadata?.namespace,
     replicas: depl.spec?.replicas,
     ready: depl.status?.readyReplicas || 0,
+    readyReplicas: depl.status?.readyReplicas || 0,
     updated: depl.status?.updatedReplicas || 0,
     available: depl.status?.availableReplicas || 0,
     age: depl.metadata?.creationTimestamp ? new Date(depl.metadata.creationTimestamp).toISOString() : 'unknown',
+    images: depl.spec?.template?.spec?.containers?.map((c: any) => c.image).filter(Boolean) || [],
   }));
 
   return JSON.stringify(deployments, null, 2);
@@ -94,11 +97,14 @@ export async function rolloutRestart(
       },
     };
 
-    await appsV1.patchNamespacedDeployment({
-      name,
-      namespace,
-      body,
-    });
+    await appsV1.patchNamespacedDeployment(
+      {
+        name,
+        namespace,
+        body,
+      },
+      setHeaderOptions('Content-Type', PatchStrategy.StrategicMergePatch)
+    );
 
     return JSON.stringify({
       dryRun: false,

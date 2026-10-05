@@ -20,21 +20,21 @@ export async function listApps(): Promise<string> {
 
 export async function getApp(name: string): Promise<string> {
   const client = getArgoClient();
-  const result = await client.get(`/api/v1/applications/${name}`);
+  const result = await client.get(`/api/v1/applications/${encodeURIComponent(name)}`);
   return JSON.stringify(result, null, 2);
 }
 
 export async function getAppDiff(name: string): Promise<string> {
   const client = getArgoClient();
-  const result = await client.get(`/api/v1/applications/${name}/diff`);
+  const result = await client.get(`/api/v1/applications/${encodeURIComponent(name)}/managed-resources`);
   return JSON.stringify(result, null, 2);
 }
 
 export async function getAppHistory(name: string): Promise<string> {
   const client = getArgoClient();
-  const result = await client.get(`/api/v1/applications/${name}/history`);
+  const app = await client.get(`/api/v1/applications/${encodeURIComponent(name)}`);
   
-  const history = result.map((h: any) => ({
+  const history = (app?.status?.history || []).map((h: any) => ({
     revision: h.revision,
     deployedAt: h.deployedAt,
     source: h.source,
@@ -46,7 +46,7 @@ export async function getAppHistory(name: string): Promise<string> {
 
 export async function getResourceTree(name: string): Promise<string> {
   const client = getArgoClient();
-  const result = await client.get(`/api/v1/applications/${name}/resource-tree`);
+  const result = await client.get(`/api/v1/applications/${encodeURIComponent(name)}/resource-tree`);
   return JSON.stringify(result, null, 2);
 }
 
@@ -68,7 +68,7 @@ export async function syncApp(
       }, null, 2);
     }
 
-    const result = await client.post(`/api/v1/applications/${name}/sync`, {
+    const result = await client.post(`/api/v1/applications/${encodeURIComponent(name)}/sync`, {
       dryRun: false,
       prune,
       force,
@@ -111,25 +111,30 @@ export async function rollbackApp(
 
 export async function terminateOp(
   name: string,
-  uid: string,
-  dryRun: boolean = true
+  uidOrDryRun?: string | boolean,
+  dryRunParam: boolean = true
 ): Promise<string> {
+  const dryRun = typeof uidOrDryRun === 'boolean' ? uidOrDryRun : dryRunParam;
+  const uid = typeof uidOrDryRun === 'string' ? uidOrDryRun : undefined;
+
   return withDryRunGuard('argo__terminate_op', { name, uid, dry_run: dryRun }, 'mutate', async () => {
     if (dryRun) {
       return JSON.stringify({
         dryRun: true,
-        message: `Would terminate operation ${uid} for application ${name}`,
+        message: uid
+          ? `Would terminate operation ${uid} for application ${name}`
+          : `Would terminate operation for application ${name}`,
       }, null, 2);
     }
 
     const client = getArgoClient();
-    await client.delete(`/api/v1/applications/${encodeURIComponent(name)}/operations/${encodeURIComponent(uid)}`);
+    await client.delete(`/api/v1/applications/${encodeURIComponent(name)}/operation`);
 
     return JSON.stringify({
       dryRun: false,
       terminated: true,
       application: name,
-      operationUid: uid,
+      ...(uid ? { operationUid: uid } : {}),
     }, null, 2);
   });
 }

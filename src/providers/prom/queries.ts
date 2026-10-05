@@ -99,14 +99,14 @@ export async function listTargets(): Promise<string> {
 
 export async function labelValues(label: string): Promise<string> {
   const client = getPromClient();
-  const result = await client.get(`/api/v1/label/${label}/values`);
+  const result = await client.get(`/api/v1/label/${encodeURIComponent(label)}/values`);
   
   return JSON.stringify(result.data, null, 2);
 }
 
 export async function metricMetadata(metric: string): Promise<string> {
   const client = getPromClient();
-  const result = await client.get(`/api/v1/metadata/${metric}`);
+  const result = await client.get(`/api/v1/metadata?metric=${encodeURIComponent(metric)}`);
   
   return JSON.stringify(result.data, null, 2);
 }

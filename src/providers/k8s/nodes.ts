@@ -1,5 +1,4 @@
 import { getCoreV1 } from './client.js';
-import * as k8s from '@kubernetes/client-node';
 
 export async function getNodeStatus(nodeName?: string): Promise<string> {
   const coreV1 = getCoreV1();

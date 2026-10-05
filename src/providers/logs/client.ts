@@ -25,6 +25,7 @@ export async function getLokiClient() {
         
         try {
           const response = await fetch(url, {
+            signal: AbortSignal.timeout(30_000),
             method: 'GET',
             headers,
           });
@@ -52,6 +53,7 @@ export async function getLokiClient() {
         
         try {
           const response = await fetch(url, {
+            signal: AbortSignal.timeout(30_000),
             method: 'POST',
             headers,
             body: JSON.stringify(data),

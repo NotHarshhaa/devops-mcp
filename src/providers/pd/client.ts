@@ -15,16 +15,24 @@ export class PagerDutyClient {
     path: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const url = `${this.baseUrl}${path}`;
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    const url = `${this.baseUrl}${cleanPath}`;
     
+    const headers: Record<string, string> = {
+      'Authorization': `Token token=${this.token}`,
+      'Accept': 'application/vnd.pagerduty+json;version=2',
+      'Content-Type': 'application/json',
+      ...options.headers as Record<string, string>,
+    };
+
+    if (config.pagerdutyUserEmail && !headers['From']) {
+      headers['From'] = config.pagerdutyUserEmail;
+    }
+
     const response = await fetch(url, {
+      signal: options.signal || AbortSignal.timeout(30_000),
       ...options,
-      headers: {
-        'Authorization': `Token token=${this.token}`,
-        'Accept': 'application/vnd.pagerduty+json;version=2',
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+      headers,
     });
 
     if (!response.ok) {

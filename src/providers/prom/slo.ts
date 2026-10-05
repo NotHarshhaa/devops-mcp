@@ -1,14 +1,19 @@
 import * as queries from './queries.js';
 
+function escapePromql(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
 export async function sloStatus(
   service: string,
   sloTarget: number = 0.999,
   windowDays: number = 30,
   namespace?: string
 ) {
-  const nsFilter = namespace ? `,namespace="${namespace}"` : '';
-  const totalQuery = `sum(increase(http_requests_total{job="${service}"${nsFilter}}[${windowDays}d]))`;
-  const errorQuery = `sum(increase(http_requests_total{job="${service}",code=~"5.."${nsFilter}}[${windowDays}d]))`;
+  const safeService = escapePromql(service);
+  const nsFilter = namespace ? `,namespace="${escapePromql(namespace)}"` : '';
+  const totalQuery = `sum(increase(http_requests_total{job="${safeService}"${nsFilter}}[${windowDays}d]))`;
+  const errorQuery = `sum(increase(http_requests_total{job="${safeService}",code=~"5.."${nsFilter}}[${windowDays}d]))`;
 
   const [totalRaw, errorRaw] = await Promise.all([
     queries.query(totalQuery),
